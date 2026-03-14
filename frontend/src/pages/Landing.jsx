@@ -7,7 +7,8 @@ const ALBUM_COVERS = [
   'https://upload.wikimedia.org/wikipedia/en/7/74/Ye_album_cover.jpg',
   'https://i.cbc.ca/ais/1.4574015,1614648570000/full/max/0/default.jpg?im=Crop%2Crect%3D%280%2C0%2C2000%2C2000%29%3B',
   'https://media.pitchfork.com/photos/638902d5f777c8e284615da3/1:1/w_1500,h_1500,c_limit/SZA.jpg',
-  'https://qodeinteractive.com/magazine/wp-content/uploads/2020/06/16-Tame-Impala.jpg'
+  'https://www.indieground.net/images/blog/2024/indieblog-best-album-covers-2010s-07.jpg',
+  'https://creativereview.imgix.net/uploads/2020/02/1-Tame-Impala-TSR-%E2%80%93-Neil-Krug.jpg?auto=compress,format&crop=faces,entropy,edges&fit=crop&q=60&w=1200&h=1200'
 ];
 
 // How often covers rotate (ms)
