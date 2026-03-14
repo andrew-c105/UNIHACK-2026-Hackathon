@@ -6,7 +6,6 @@ import Session from './pages/Session';
 import History from './pages/History';
 import PullRequest from './pages/PullRequest';
 import Conflict from './pages/Conflict';
-import About from './pages/About';
 
 function App() {
   return (
@@ -14,7 +13,6 @@ function App() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/projects" element={<Projects />} />
-        <Route path="/about" element={<About />} />
         <Route path="/project/:projectId" element={<Dashboard />} />
         <Route path="/project/:projectId/session" element={<Session />} />
         <Route path="/project/:projectId/history" element={<History />} />

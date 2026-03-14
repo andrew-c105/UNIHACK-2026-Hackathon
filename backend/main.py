@@ -16,6 +16,7 @@ from supabase import create_client
 
 from services.git_service import GitService
 from services.storage_service import StorageService
+from services.local_storage_service import LocalStorageService
 
 load_dotenv()
 
@@ -29,16 +30,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Supabase
+# Supabase (optional – falls back to local JSON storage)
 SUPABASE_URL = os.getenv("SUPABASE_URL", "")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
 # Local data dir (for git repos and audio file serving)
 DATA_DIR = Path(os.getenv("TRACKSYNC_DATA_DIR", "./data"))
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-storage_service = StorageService(supabase, DATA_DIR)
+if SUPABASE_URL and SUPABASE_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    storage_service = StorageService(supabase, DATA_DIR)
+    print("Using Supabase storage")
+else:
+    storage_service = LocalStorageService(DATA_DIR)
+    print("No Supabase credentials found – using local JSON storage")
+
 git_service = GitService(DATA_DIR, storage_service)
 
 

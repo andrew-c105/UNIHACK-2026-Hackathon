@@ -44,8 +44,8 @@ export default function PullRequest() {
       if (rightEl && t.branch_url) {
         const ws = WaveSurfer.create({
           container: rightEl,
-          waveColor: '#22d3ee',
-          progressColor: '#67e8f9',
+          waveColor: '#e0e0e0',
+          progressColor: '#fff',
           height: 60,
           url: toFullUrl(t.branch_url),
         });
@@ -87,10 +87,10 @@ export default function PullRequest() {
 
   if (!pr && !loading) {
     return (
-      <div className="min-h-screen" style={{ backgroundColor: '#0d1117' }}>
+      <div className="min-h-screen bg-[#0a0a0a]">
         <Navbar />
         <div className="flex items-center justify-center py-24">
-          <p className="text-slate-400">PR not found</p>
+          <p className="text-[#e0e0e0]/50">PR not found</p>
         </div>
       </div>
     );
@@ -101,60 +101,50 @@ export default function PullRequest() {
   ];
 
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#0d1117' }}>
+    <div className="min-h-screen pb-24 bg-[#0a0a0a]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Breadcrumb */}
-        <nav className="mb-6 text-sm text-slate-400">
-          <Link to="/" className="hover:text-white">projects</Link>
+        <nav className="mb-6 text-sm text-[#e0e0e0]/50">
+          <Link to="/" className="hover:text-white transition-colors">projects</Link>
           <span className="mx-2">/</span>
-          <Link to={`/project/${projectId}`} className="hover:text-white">{pr?.project_id || projectId}</Link>
+          <Link to={`/project/${projectId}`} className="hover:text-white transition-colors">{pr?.project_id || projectId}</Link>
           <span className="mx-2">/</span>
-          <span className="text-slate-300">pulls</span>
+          <span className="text-[#e0e0e0]/70">pulls</span>
           <span className="mx-2">/</span>
           <span className="text-white">{prId}</span>
         </nav>
 
-        {loading && <p className="text-slate-500">Loading…</p>}
+        {loading && <p className="text-[#e0e0e0]/40">Loading…</p>}
         {!loading && pr && (
           <>
             {pr.merged && (
-              <div
-                className="mb-6 rounded-xl border p-4"
-                style={{ backgroundColor: 'rgba(34, 197, 94, 0.15)', borderColor: 'rgba(34, 197, 94, 0.5)' }}
-              >
+              <div className="mb-6 rounded-xl border p-4 bg-emerald-500/10 border-emerald-500/30">
                 <p className="font-medium text-emerald-400">Merged successfully</p>
               </div>
             )}
 
             {/* PR header card */}
-            <div
-              className="mb-8 rounded-xl p-6"
-              style={{ backgroundColor: '#141b2d', border: '1px solid #1e293b' }}
-            >
+            <div className="mb-8 rounded-xl p-6 bg-[#111] border border-white/10">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-bold text-white">{pr.title || `Pull Request #${prId}`}</h1>
                   <span className="mt-2 inline-block rounded px-2.5 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-400">
                     Open
                   </span>
-                  <p className="mt-2 text-slate-400 text-sm">
+                  <p className="mt-2 text-[#e0e0e0]/50 text-sm">
                     {pr.source_branch || 'feature/bass-boost'} → {pr.target_branch || 'main'}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
-                  <button
-                    className="rounded-lg border px-4 py-2 text-sm text-slate-300"
-                    style={{ borderColor: '#1e293b' }}
-                  >
+                  <button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[#e0e0e0]/70 hover:border-[#e0e0e0]/40 transition-colors">
                     Edit
                   </button>
                   {!pr.merged && (
                     <button
                       onClick={handleMerge}
                       disabled={merging || pr.has_conflicts}
-                      className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                      style={{ backgroundColor: '#22c55e' }}
+                      className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors"
                     >
                       {merging ? 'Merging…' : 'Merge Pull Request'}
                     </button>
@@ -170,58 +160,50 @@ export default function PullRequest() {
                 className="mb-8 grid grid-cols-2 gap-4"
               >
                 {/* Left: Previous Branch */}
-                <div
-                  className="rounded-xl p-5"
-                  style={{ backgroundColor: '#141b2d', border: '1px solid #1e293b' }}
-                >
+                <div className="rounded-xl p-5 bg-[#111] border border-white/10">
                   <span className="inline-block rounded px-2 py-0.5 text-xs font-medium bg-red-500/20 text-red-400">
                     Previous Branch
                   </span>
                   <p className="mt-2 font-medium text-white">{t.name}.wav</p>
-                  <p className="text-slate-400 text-sm">3:24 · 44.1kHz · 4.2MB</p>
+                  <p className="text-[#e0e0e0]/40 text-sm">3:24 · 44.1kHz · 4.2MB</p>
                   <div
                     id={`ws-left-${t.id}`}
-                    className="mt-3 rounded-lg overflow-hidden"
-                    style={{ backgroundColor: '#0d1117', minHeight: 60 }}
+                    className="mt-3 rounded-lg overflow-hidden bg-[#0a0a0a]"
+                    style={{ minHeight: 60 }}
                   />
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={() => playLeft(t.id)}
-                      className="rounded px-3 py-1.5 text-sm font-medium text-white"
-                      style={{ backgroundColor: '#f87171' }}
+                      className="rounded px-3 py-1.5 text-sm font-medium text-white bg-red-500 hover:bg-red-400 transition-colors"
                     >
                       Play
                     </button>
-                    <div className="h-1 flex-1 rounded-full bg-slate-700">
+                    <div className="h-1 flex-1 rounded-full bg-white/10">
                       <div className="h-full w-1/3 rounded-full bg-red-400" />
                     </div>
                   </div>
                 </div>
                 {/* Right: Compare Branch */}
-                <div
-                  className="rounded-xl p-5"
-                  style={{ backgroundColor: '#141b2d', border: '1px solid #1e293b' }}
-                >
-                  <span className="inline-block rounded px-2 py-0.5 text-xs font-medium bg-cyan-500/20 text-[#22d3ee]">
+                <div className="rounded-xl p-5 bg-[#111] border border-white/10">
+                  <span className="inline-block rounded px-2 py-0.5 text-xs font-medium bg-[#e0e0e0]/10 text-[#e0e0e0]">
                     Compare Branch
                   </span>
                   <p className="mt-2 font-medium text-white">{t.name}.wav</p>
-                  <p className="text-slate-400 text-sm">3:24 · 44.1kHz · 4.2MB</p>
+                  <p className="text-[#e0e0e0]/40 text-sm">3:24 · 44.1kHz · 4.2MB</p>
                   <div
                     id={`ws-right-${t.id}`}
-                    className="mt-3 rounded-lg overflow-hidden"
-                    style={{ backgroundColor: '#0d1117', minHeight: 60 }}
+                    className="mt-3 rounded-lg overflow-hidden bg-[#0a0a0a]"
+                    style={{ minHeight: 60 }}
                   />
                   <div className="mt-3 flex items-center gap-2">
                     <button
                       onClick={() => playRight(t.id)}
-                      className="rounded px-3 py-1.5 text-sm font-medium text-white"
-                      style={{ backgroundColor: '#22d3ee' }}
+                      className="rounded px-3 py-1.5 text-sm font-medium text-[#0a0a0a] bg-[#e0e0e0] hover:bg-white transition-colors"
                     >
                       Play
                     </button>
-                    <div className="h-1 flex-1 rounded-full bg-slate-700">
-                      <div className="h-full w-2/3 rounded-full" style={{ backgroundColor: '#22d3ee' }} />
+                    <div className="h-1 flex-1 rounded-full bg-white/10">
+                      <div className="h-full w-2/3 rounded-full bg-[#e0e0e0]" />
                     </div>
                   </div>
                 </div>
@@ -232,8 +214,7 @@ export default function PullRequest() {
             {nonAudioChanges.map((f) => (
               <div
                 key={f.name}
-                className="mb-4 flex items-center justify-between rounded-lg px-4 py-3"
-                style={{ backgroundColor: '#141b2d', border: '1px solid #1e293b' }}
+                className="mb-4 flex items-center justify-between rounded-lg px-4 py-3 bg-[#111] border border-white/10"
               >
                 <span className="text-white">{f.name}</span>
                 <span className="text-sm text-emerald-400">{f.lines}</span>
@@ -241,33 +222,27 @@ export default function PullRequest() {
             ))}
 
             {/* Bottom floating bar */}
-            <div
-              className="fixed bottom-0 left-0 right-0 flex items-center justify-between gap-4 px-6 py-4"
-              style={{ backgroundColor: '#141b2d', borderTop: '1px solid #1e293b' }}
-            >
-              <span className="text-slate-400 text-sm">
+            <div className="fixed bottom-0 left-0 right-0 flex items-center justify-between gap-4 px-6 py-4 bg-[#111] border-t border-white/10">
+              <span className="text-[#e0e0e0]/50 text-sm">
                 Now Comparing: <span className="text-white">{compareLabel}</span>
               </span>
               <div className="flex items-center gap-4">
-                <button className="rounded px-3 py-1.5 text-sm text-slate-400 hover:text-white">
+                <button className="rounded px-3 py-1.5 text-sm text-[#e0e0e0]/50 hover:text-white transition-colors">
                   ◀
                 </button>
-                <button className="rounded px-3 py-1.5 text-sm text-white" style={{ backgroundColor: '#22d3ee' }}>
+                <button className="rounded px-3 py-1.5 text-sm text-[#0a0a0a] bg-[#e0e0e0] hover:bg-white transition-colors">
                   ▶
                 </button>
-                <button className="rounded px-3 py-1.5 text-sm text-slate-400 hover:text-white">
+                <button className="rounded px-3 py-1.5 text-sm text-[#e0e0e0]/50 hover:text-white transition-colors">
                   ▶▶
                 </button>
-                <button className="rounded px-3 py-1.5 text-sm text-slate-400 hover:text-white">
+                <button className="rounded px-3 py-1.5 text-sm text-[#e0e0e0]/50 hover:text-white transition-colors">
                   Solo L
                 </button>
-                <button
-                  className="rounded px-3 py-1.5 text-sm font-medium text-white"
-                  style={{ backgroundColor: '#22d3ee' }}
-                >
+                <button className="rounded px-3 py-1.5 text-sm font-medium text-[#0a0a0a] bg-[#e0e0e0] hover:bg-white transition-colors">
                   Sync
                 </button>
-                <button className="rounded px-3 py-1.5 text-sm text-slate-400 hover:text-white">
+                <button className="rounded px-3 py-1.5 text-sm text-[#e0e0e0]/50 hover:text-white transition-colors">
                   Solo R
                 </button>
               </div>

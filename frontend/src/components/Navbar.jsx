@@ -5,7 +5,6 @@ export default function Navbar() {
   const isProjectsActive = location.pathname === '/projects' || location.pathname.startsWith('/project/');
   const isLanding = location.pathname === '/';
 
-  // On landing page use transparent style, otherwise use solid dark
   const navBg = isLanding
     ? 'bg-transparent'
     : 'bg-[#0a0a0a] border-b border-white/10';
@@ -55,19 +54,6 @@ export default function Navbar() {
         >
           PROJECTS
         </Link>
-        <NavLink
-          to="/about"
-          className={({ isActive }) =>
-            `px-5 py-2.5 rounded-full text-base font-bold tracking-wider transition-all duration-300 ${
-              isActive
-                ? 'text-[#0a0a0a]'
-                : 'text-[#e0e0e0]/70 hover:text-[#e0e0e0] hover:bg-white/10'
-            }`
-          }
-          style={({ isActive }) => isActive ? { background: '#e0e0e0' } : {}}
-        >
-          ABOUT
-        </NavLink>
       </div>
 
       {/* User Avatar */}

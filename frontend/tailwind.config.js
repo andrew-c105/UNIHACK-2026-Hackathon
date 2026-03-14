@@ -8,18 +8,16 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        display: ['Syncopate', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
       colors: {
         brand: {
-          dark: '#0d1117',
-          card: '#141b2d',
-          surface: '#1a2332',
+          dark: '#0a0a0a',
+          card: '#111111',
+          surface: '#1a1a1a',
         },
-        cyan: {
-          400: '#22d3ee',
-          500: '#06b6d4',
-        },
+        silver: '#e0e0e0',
         track: {
           up: '#22c55e',
           conflict: '#ef4444',

@@ -5,5 +5,5 @@
 @tailwind utilities;
 
 body {
-  @apply bg-brand-dark text-slate-100 font-sans antialiased;
+  @apply bg-brand-dark text-silver font-sans antialiased;
 }
