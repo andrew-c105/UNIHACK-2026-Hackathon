@@ -1,134 +1,247 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
 import Navbar from '../components/Navbar';
 
-export default function Landing() {
-  const features = [
-    {
-      icon: '📦',
-      title: 'Version Control',
-      description:
-        'Track every change in your DAW files. Revert to previous versions without losing creative sparks.',
-    },
-    {
-      icon: '👥',
-      title: 'Collaborative Editing',
-      description:
-        'Invite producers and musicians to your repository. Work on the same track concurrently with smart merging.',
-    },
-    {
-      icon: '🌿',
-      title: 'Branch Management',
-      description:
-        'Experiment safely on new branches. Try different mix ideas or arrangements without affecting the main project.',
-    },
-    {
-      icon: '🔀',
-      title: 'Pull Request System',
-      description:
-        'Review changes before merging. Discuss modifications, leave comments on specific timestamps.',
-    },
-    {
-      icon: '⚡',
-      title: 'Conflict Resolution',
-      description:
-        'Smart conflict detection for audio files and project metadata. Resolve overlapping edits with visual tools.',
-    },
-    {
-      icon: '☁️',
-      title: 'Cloud Storage',
-      description:
-        'Secure cloud storage optimized for large audio files and stems. Access your projects from anywhere.',
-    },
-  ];
+// Album cover URLs — replace or add your own here
+const ALBUM_COVERS = [
+  'https://www.sleek-mag.com/wp-content/uploads/2016/08/AlbumCovers_Blonde-1200x1200.jpg',
+  'https://i.cbc.ca/ais/1.4574015,1614648570000/full/max/0/default.jpg?im=Crop%2Crect%3D%280%2C0%2C2000%2C2000%29%3B',
+  'https://upload.wikimedia.org/wikipedia/en/7/70/Graduation_%28album%29.jpg',
+];
 
-  const stats = [
-    { value: '10k+', label: 'ACTIVE PROJECTS' },
-    { value: '50k+', label: 'COMMITS PUSHED' },
-    { value: '99%', label: 'UPTIME' },
-  ];
+// How often covers rotate (ms)
+const ROTATE_INTERVAL = 5000;
+
+export default function Landing() {
+  const canvasRef = useRef(null);
+  const layerRef = useRef(null);
+  const [coverIndex, setCoverIndex] = useState(0);
+  const [fading, setFading] = useState(false);
+
+  // Auto-rotate album covers with fade transition
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFading(true);
+      setTimeout(() => {
+        setCoverIndex((prev) => (prev + 1) % ALBUM_COVERS.length);
+        setFading(false);
+      }, 600);
+    }, ROTATE_INTERVAL);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Mouse parallax — gentle tilt, always showing album face
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleMouseMove = (e) => {
+      const x = (window.innerWidth / 2 - e.pageX) / 25;
+      const y = (window.innerHeight / 2 - e.pageY) / 25;
+
+      // Clamp rotation so the album face is always visible
+      const rotX = Math.min(Math.max(55 + y * 0.4, 45), 65);
+      const rotZ = Math.min(Math.max(-25 + x * 0.4, -35), -15);
+
+      canvas.style.transform = `rotateX(${rotX}deg) rotateZ(${rotZ}deg)`;
+
+      if (layerRef.current) {
+        const moveX = x * 0.3;
+        const moveY = y * 0.3;
+        layerRef.current.style.transform = `translate(${moveX}px, ${moveY}px)`;
+      }
+    };
+
+    // Entrance animation
+    canvas.style.opacity = '0';
+    canvas.style.transform = 'rotateX(90deg) rotateZ(0deg) scale(0.8)';
+
+    const timeout = setTimeout(() => {
+      canvas.style.transition = 'all 2.5s cubic-bezier(0.16, 1, 0.3, 1)';
+      canvas.style.opacity = '1';
+      canvas.style.transform = 'rotateX(55deg) rotateZ(-25deg) scale(1)';
+    }, 300);
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      clearTimeout(timeout);
+    };
+  }, []);
+
+  const currentCover = ALBUM_COVERS[coverIndex % ALBUM_COVERS.length];
 
   return (
-    <div className="min-h-screen bg-brand-dark">
-      <Navbar />
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Syncopate:wght@400;700&display=swap');
 
-      <main className="max-w-6xl mx-auto px-6">
-        {/* Hero */}
-        <section className="pt-20 pb-16 text-center">
-          <style>{`
-            @keyframes waveform {
-              0%, 100% { height: 0.5rem; }
-              50% { height: 1.5rem; }
-            }
-            .wave-bar {
-              animation: waveform 1.2s ease-in-out infinite;
-            }
-            .wave-bar:nth-child(1) { animation-delay: 0s; }
-            .wave-bar:nth-child(2) { animation-delay: 0.1s; }
-            .wave-bar:nth-child(3) { animation-delay: 0.2s; }
-            .wave-bar:nth-child(4) { animation-delay: 0.3s; }
-            .wave-bar:nth-child(5) { animation-delay: 0.4s; }
-            .wave-bar:nth-child(6) { animation-delay: 0.5s; }
-            .wave-bar:nth-child(7) { animation-delay: 0.6s; }
-            .wave-bar:nth-child(8) { animation-delay: 0.7s; }
-            .wave-bar:nth-child(9) { animation-delay: 0.8s; }
-          `}</style>
-          <div className="flex justify-center gap-1.5 mb-8 h-12 items-end" aria-hidden>
-            {[3, 6, 4, 8, 5, 7, 4, 6, 3].map((_, i) => (
-              <div key={i} className="wave-bar w-1.5 rounded-full bg-cyan-400" />
-            ))}
-          </div>
+        .halide-landing {
+          --bg: #0a0a0a;
+          --silver: #e0e0e0;
+          --accent: #ff3c00;
+          --grain-opacity: 0.15;
+          background-color: var(--bg);
+          color: var(--silver);
+          font-family: 'Syncopate', sans-serif;
+          overflow: hidden;
+          height: 100vh;
+          width: 100vw;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          position: relative;
+        }
 
-          <h1 className="text-5xl md:text-7xl font-bold mb-6">
-            <span className="text-white">Music </span>
-            <span className="bg-gradient-to-r from-cyan-400 to-cyan-500 bg-clip-text text-transparent">
-              GitHub
-            </span>
-          </h1>
-          <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-10">
-            Version control for your music projects. Collaborate, edit, and manage tracks seamlessly.
+        .halide-grain {
+          position: fixed;
+          top: 0; left: 0; width: 100%; height: 100%;
+          pointer-events: none;
+          z-index: 100;
+          opacity: var(--grain-opacity);
+        }
+
+        .halide-viewport {
+          perspective: 2000px;
+          flex: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        }
+
+        .halide-canvas {
+          position: relative;
+          width: 420px;
+          height: 420px;
+          transform-style: preserve-3d;
+          transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .halide-album {
+          position: absolute;
+          inset: 0;
+          border: 1px solid rgba(224, 224, 224, 0.15);
+          background-size: cover;
+          background-position: center;
+          border-radius: 6px;
+          transition: transform 0.8s ease, opacity 0.6s ease;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        .halide-album.fading {
+          opacity: 0.3;
+        }
+
+        /* Text overlay — OUTSIDE the 3D canvas, stays flat */
+        .halide-hero-overlay {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+          pointer-events: none;
+        }
+
+        .halide-title {
+          font-family: 'Syncopate', sans-serif;
+          font-size: clamp(4rem, 12vw, 12rem);
+          line-height: 0.85;
+          letter-spacing: -0.04em;
+          font-weight: 700;
+          text-align: center;
+          margin: 0;
+          color: #fff;
+          mix-blend-mode: difference;
+        }
+
+        .halide-subtitle {
+          font-family: 'Inter', sans-serif;
+          font-size: clamp(0.8rem, 1.8vw, 1.2rem);
+          letter-spacing: 0.2em;
+          color: rgba(255, 255, 255, 0.85);
+          margin-top: 1.5rem;
+          text-align: center;
+          font-weight: 600;
+          mix-blend-mode: difference;
+        }
+
+        .halide-contours {
+          position: absolute;
+          width: 200%;
+          height: 200%;
+          top: -50%;
+          left: -50%;
+          background-image: repeating-radial-gradient(
+            circle at 50% 50%,
+            transparent 0,
+            transparent 40px,
+            rgba(255, 255, 255, 0.05) 41px,
+            transparent 42px
+          );
+          transform: translateZ(120px);
+          pointer-events: none;
+        }
+
+        .halide-scroll-hint {
+          position: absolute;
+          bottom: 2rem;
+          left: 50%;
+          width: 1px;
+          height: 60px;
+          background: linear-gradient(to bottom, var(--silver), transparent);
+          animation: halide-flow 2s infinite ease-in-out;
+          z-index: 10;
+        }
+
+        @keyframes halide-flow {
+          0%, 100% { transform: scaleY(0); transform-origin: top; }
+          50% { transform: scaleY(1); transform-origin: top; }
+          51% { transform: scaleY(1); transform-origin: bottom; }
+        }
+      `}</style>
+
+      <div className="halide-landing">
+        {/* SVG Grain Filter */}
+        <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+          <filter id="grain">
+            <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" />
+            <feColorMatrix type="saturate" values="0" />
+          </filter>
+        </svg>
+
+        <div className="halide-grain" style={{ filter: 'url(#grain)' }} />
+
+        {/* Navbar */}
+        <div style={{ position: 'relative', zIndex: 50 }}>
+          <Navbar />
+        </div>
+
+        {/* Hero text — flat, not inside 3D canvas */}
+        <div className="halide-hero-overlay">
+          <h1 className="halide-title">TRACKSYNC</h1>
+          <p className="halide-subtitle">
+            VERSION CONTROL FOR YOUR MUSIC PROJECTS
           </p>
-          <Link
-            to="/projects"
-            className="inline-block px-8 py-4 rounded-lg bg-cyan-400 hover:bg-cyan-300 text-brand-dark font-semibold transition-colors"
-          >
-            Get Started
-          </Link>
+        </div>
 
-          <div className="flex flex-wrap justify-center gap-12 md:gap-16 mt-16 text-slate-400">
-            {stats.map((s, i) => (
-              <div key={i} className="text-center">
-                <div className="text-2xl font-bold text-white">{s.value}</div>
-                <div className="text-xs tracking-widest uppercase mt-1">{s.label}</div>
-              </div>
-            ))}
+        {/* 3D Viewport */}
+        <div className="halide-viewport">
+          <div className="halide-canvas" ref={canvasRef}>
+            {/* Single album cover */}
+            <div
+              className={`halide-album${fading ? ' fading' : ''}`}
+              ref={layerRef}
+              style={{ backgroundImage: `url('${currentCover}')` }}
+            />
+            <div className="halide-contours" />
           </div>
-        </section>
+        </div>
 
-        {/* Features */}
-        <section className="py-20">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f, i) => (
-              <div
-                key={i}
-                className="rounded-xl bg-brand-card border border-slate-800 p-6 hover:border-slate-700 transition-colors"
-              >
-                <div className="text-3xl mb-4">{f.icon}</div>
-                <h3 className="text-lg font-semibold text-white mb-2">{f.title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{f.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="py-16 text-center">
-          <Link
-            to="/projects"
-            className="inline-block px-8 py-4 rounded-lg border border-cyan-400/30 text-cyan-400 hover:bg-cyan-400/10 font-medium transition"
-          >
-            Browse Projects
-          </Link>
-        </section>
-      </main>
-    </div>
+        <div className="halide-scroll-hint" />
+      </div>
+    </>
   );
 }
