@@ -20,10 +20,13 @@ class LocalStorageService:
         self._db = self._load()
 
     def _load(self) -> dict:
+        default = {"projects": {}, "tracks": {}, "commits": {}, "pull_requests": {}, "pr_tracks": {}, "issues": {}}
         if self._db_path.exists():
-            with open(self._db_path) as f:
-                return json.load(f)
-        return {"projects": {}, "tracks": {}, "commits": {}, "pull_requests": {}, "pr_tracks": {}}
+            data = json.load(open(self._db_path))
+            if "issues" not in data:
+                data["issues"] = {}
+            return data
+        return default
 
     def _save(self):
         with open(self._db_path, "w") as f:
@@ -52,6 +55,15 @@ class LocalStorageService:
 
     def get_project(self, project_id: str) -> Optional[dict]:
         return self._db["projects"].get(project_id)
+
+    def update_project(self, project_id: str, description: Optional[str] = None) -> Optional[dict]:
+        if project_id not in self._db["projects"]:
+            return None
+        if description is not None:
+            self._db["projects"][project_id]["description"] = description
+            self._db["projects"][project_id]["updated_at"] = datetime.now(timezone.utc).isoformat()
+            self._save()
+        return self._db["projects"][project_id]
 
     # ---- Commits ----
 
@@ -110,13 +122,14 @@ class LocalStorageService:
     # ---- Pull Requests ----
 
     def create_pr(self, project_id: str, branch: str, author: str,
-                  has_conflicts: bool = False) -> dict:
+                  has_conflicts: bool = False, target_branch: str = "main") -> dict:
         now = datetime.now(timezone.utc).isoformat()
         pr_id = str(uuid.uuid4())[:8]
         row = {
             "id": pr_id,
             "project_id": project_id,
             "branch": branch,
+            "target_branch": target_branch,
             "author": author,
             "status": "open",
             "has_conflicts": has_conflicts,
@@ -161,6 +174,31 @@ class LocalStorageService:
     def get_pr_tracks(self, pr_id: str) -> list:
         return self._db["pr_tracks"].get(pr_id, [])
 
+    # ---- Issues ----
+
+    def create_issue(self, project_id: str, title: str, description: str,
+                     author: str, assignees: list) -> dict:
+        now = datetime.now(timezone.utc).isoformat()
+        issue_id = str(uuid.uuid4())[:8]
+        row = {
+            "id": issue_id,
+            "project_id": project_id,
+            "title": title,
+            "description": description or "",
+            "author": author,
+            "assignees": assignees or [],
+            "status": "open",
+            "created_at": now,
+        }
+        self._db["issues"].setdefault(project_id, []).append(row)
+        self._save()
+        return row
+
+    def get_issues_for_project(self, project_id: str) -> list:
+        issues = self._db["issues"].get(project_id, [])
+        issues.sort(key=lambda i: i.get("created_at", ""), reverse=True)
+        return issues
+
     # ---- Audio file storage (local only) ----
 
     def upload_track_file(self, project_id: str, filename: str, file_bytes: bytes) -> str:
@@ -173,7 +211,7 @@ class LocalStorageService:
         return storage_path
 
     def get_public_url(self, bucket: str, path: str) -> str:
-        return f"/api/audio/{path}"
+        return f"/audio/{path}"
 
     def upload_main_mix(self, project_id: str, file_path: Path) -> str:
         # File is already in the right place on disk
@@ -182,8 +220,8 @@ class LocalStorageService:
     def get_main_audio_url(self, project_id: str) -> Optional[str]:
         mp3_local = self.data_dir / project_id / "main.mp3"
         if mp3_local.exists():
-            return f"/api/audio/{project_id}/main.mp3"
+            return f"/audio/{project_id}/main.mp3"
         wav_local = self.data_dir / project_id / "main.wav"
         if wav_local.exists():
-            return f"/api/audio/{project_id}/main.wav"
+            return f"/audio/{project_id}/main.wav"
         return None

@@ -1,13 +1,8 @@
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
-import WaveSurfer from 'wavesurfer.js';
+import { useState, useEffect } from 'react';
 import Navbar from '../components/Navbar';
-import { api } from '../api';
-
-function toFullUrl(path) {
-  if (!path) return '';
-  return path.startsWith('/') ? `${window.location.origin}${path}` : path;
-}
+import DiffWaveform from '../components/DiffWaveform';
+import { api, audioUrl } from '../api';
 
 export default function Conflict() {
   const { projectId } = useParams();
@@ -17,10 +12,8 @@ export default function Conflict() {
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
-  const mineRef = useRef(null);
-  const theirsRef = useRef(null);
-  const wavesurferMineRef = useRef(null);
-  const wavesurferTheirsRef = useRef(null);
+  const [resolved, setResolved] = useState(null);
+  const [diffData, setDiffData] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -28,12 +21,21 @@ export default function Conflict() {
       api.getProject(projectId).catch(() => null),
     ])
       .then(([{ conflict: c }, proj]) => {
-        setConflict(c || {
+        const conflictData = c || {
           mine_url: `/api/audio/${projectId}/tracks/${trackId}.wav`,
           theirs_url: `/api/audio/${projectId}/tracks/${trackId}.wav`,
           track_id: trackId,
-        });
+        };
+        setConflict(conflictData);
         setProject(proj?.project || null);
+
+        const mineFile = conflictData.mine_url?.split('/tracks/')[1];
+        const theirsFile = conflictData.theirs_url?.split('/tracks/')[1];
+        if (mineFile && theirsFile) {
+          api.getAudioDiff(projectId, mineFile, theirsFile)
+            .then(setDiffData)
+            .catch(() => {});
+        }
       })
       .catch(() => {
         setConflict({
@@ -46,43 +48,14 @@ export default function Conflict() {
       .finally(() => setLoading(false));
   }, [projectId, trackId]);
 
-  useEffect(() => {
-    if (!conflict || !mineRef.current || !theirsRef.current) return;
-
-    const mineUrl = toFullUrl(conflict.mine_url);
-    const theirsUrl = toFullUrl(conflict.theirs_url);
-
-    const wsMine = WaveSurfer.create({
-      container: mineRef.current,
-      waveColor: '#e0e0e0',
-      progressColor: '#fff',
-      height: 100,
-      url: mineUrl,
-    });
-    const wsTheirs = WaveSurfer.create({
-      container: theirsRef.current,
-      waveColor: '#f87171',
-      progressColor: '#fb7185',
-      height: 100,
-      url: theirsUrl,
-    });
-
-    wavesurferMineRef.current = wsMine;
-    wavesurferTheirsRef.current = wsTheirs;
-
-    return () => {
-      wsMine.destroy();
-      wsTheirs.destroy();
-    };
-  }, [conflict]);
-
   const handleResolve = async (choice) => {
     setResolving(true);
     try {
       await api.mergePr(projectId, 'pr-1', { [conflict.track_id]: choice });
-      setResolving(false);
+      setResolved(choice);
     } catch (err) {
-      alert(err.message || 'Failed');
+      alert(err.message || 'Resolution failed');
+    } finally {
       setResolving(false);
     }
   };
@@ -102,7 +75,7 @@ export default function Conflict() {
   const trackName = trackId.replace(/_/g, ' ');
 
   return (
-    <div className="min-h-screen pb-24 bg-[#0a0a0a]">
+    <div className="min-h-screen pb-28 bg-[#0a0a0a]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Breadcrumb */}
@@ -111,146 +84,110 @@ export default function Conflict() {
           <span className="mx-2">&gt;</span>
           <Link to={`/project/${projectId}`} className="hover:text-white transition-colors">{projectName}</Link>
           <span className="mx-2">&gt;</span>
-          <span className="text-[#e0e0e0]/70">{trackName}.mp3</span>
+          <span className="text-[#e0e0e0]/70">{trackName}.wav</span>
         </nav>
 
         {/* Title */}
-        <div className="mb-8 flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-white">
-            Merging &quot;feature/bass-boost&quot; into &quot;main&quot;
-          </h1>
-          <span className="rounded px-2.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400">
-            1 Conflict
+        <div className="mb-6 flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-white">Conflict Resolution</h1>
+          {resolved ? (
+            <span className="rounded px-2.5 py-0.5 text-xs font-medium bg-emerald-500/20 text-emerald-400">
+              Resolved — kept {resolved === 'mine' ? 'mine' : 'theirs'}
+            </span>
+          ) : (
+            <span className="rounded px-2.5 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-400">
+              1 Conflict
+            </span>
+          )}
+        </div>
+
+        {/* Diff info */}
+        {diffData && (
+          <div className="mb-6 rounded-xl p-4 bg-[#111] border border-white/10 flex items-center gap-6">
+            <div>
+              <span className="text-[#e0e0e0]/50 text-sm">Track: </span>
+              <span className="text-white font-medium">{trackName}.wav</span>
+            </div>
+            <div>
+              <span className="text-[#e0e0e0]/50 text-sm">Difference: </span>
+              <span className="text-amber-400 font-medium">{diffData.diff_percentage}%</span>
+            </div>
+            <div>
+              <span className="text-[#e0e0e0]/50 text-sm">Regions: </span>
+              <span className="text-amber-400 font-medium">{diffData.diff_regions?.length || 0}</span>
+            </div>
+            <div>
+              <span className="text-[#e0e0e0]/50 text-sm">Duration: </span>
+              <span className="text-white font-medium">
+                {diffData.duration_a?.toFixed(1)}s vs {diffData.duration_b?.toFixed(1)}s
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Side-by-side diff */}
+        {conflict && (
+          <DiffWaveform
+            urlA={audioUrl(conflict.mine_url)}
+            urlB={audioUrl(conflict.theirs_url)}
+            labelA="Mine (Current)"
+            labelB="Theirs (Incoming)"
+            diffRegions={diffData?.diff_regions || []}
+            colorA="#e0e0e0"
+            colorB="#f87171"
+            height={100}
+          />
+        )}
+
+        {/* Resolution buttons */}
+        {!resolved && (
+          <div className="mt-6 grid grid-cols-2 gap-4">
+            <button
+              onClick={() => handleResolve('mine')}
+              disabled={resolving}
+              className="rounded-xl p-4 text-center font-medium bg-[#111] border border-white/10 text-white hover:bg-white/10 hover:border-white/30 disabled:opacity-50 transition-colors"
+            >
+              Keep Mine
+              <p className="text-[#e0e0e0]/40 text-sm font-normal mt-1">Use the current branch version</p>
+            </button>
+            <button
+              onClick={() => handleResolve('theirs')}
+              disabled={resolving}
+              className="rounded-xl p-4 text-center font-medium bg-[#111] border border-red-500/20 text-red-400 hover:bg-red-500/10 hover:border-red-500/40 disabled:opacity-50 transition-colors"
+            >
+              Keep Theirs
+              <p className="text-[#e0e0e0]/40 text-sm font-normal mt-1">Use the incoming branch version</p>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-[#111] border-t border-white/10">
+        <div className="flex items-center gap-3">
+          <span className={`h-2 w-2 rounded-full ${resolved ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+          <span className="text-[#e0e0e0]/50 text-sm">
+            {resolved
+              ? `Conflict resolved — kept ${resolved === 'mine' ? 'mine' : 'theirs'}`
+              : <>Resolving <span className="text-white font-medium">1 conflict</span> in {trackName}.wav</>
+            }
           </span>
         </div>
-
-        {/* Two side-by-side panels */}
-        <div className="grid grid-cols-2 gap-6 mb-8">
-          {/* Left: Main Branch */}
-          <div className="rounded-xl p-6 relative bg-[#111] border border-white/10">
-            <h3 className="font-semibold text-white mb-2">Main Branch</h3>
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium bg-[#e0e0e0]/10 text-[#e0e0e0]">
-              Current
-            </span>
-            <p className="mt-2 text-[#e0e0e0]/50 text-sm">Last edited 2 hours ago by @producer</p>
-            <div className="mt-4 relative">
-              <div
-                ref={mineRef}
-                className="rounded-lg overflow-hidden bg-[#0a0a0a]"
-                style={{ minHeight: 100 }}
-              />
-              {/* Conflict zone overlay - middle section */}
-              <div
-                className="absolute inset-0 pointer-events-none flex justify-center items-stretch"
-                aria-hidden
-              >
-                <div className="w-1/3 opacity-30 bg-red-500" />
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                BPM: 128
-              </span>
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                Key: Cm
-              </span>
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                Size: 4.2MB
-              </span>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => wavesurferMineRef.current?.playPause()}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[#e0e0e0]/70 hover:border-[#e0e0e0]/40 transition-colors"
-              >
-                Preview
-              </button>
-              <button
-                onClick={() => handleResolve('mine')}
-                disabled={resolving}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-[#0a0a0a] bg-[#e0e0e0] hover:bg-white disabled:opacity-50 transition-colors"
-              >
-                Keep Mine
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Incoming Branch */}
-          <div className="rounded-xl p-6 relative bg-[#111] border border-white/10">
-            <h3 className="font-semibold text-white mb-2">Incoming Branch</h3>
-            <span className="inline-block rounded px-2 py-0.5 text-xs font-medium bg-red-500/20 text-red-400">
-              Incoming
-            </span>
-            <p className="mt-2 text-[#e0e0e0]/50 text-sm">Last edited 1 hour ago by @producer</p>
-            <div className="mt-4 relative">
-              <div
-                ref={theirsRef}
-                className="rounded-lg overflow-hidden bg-[#0a0a0a]"
-                style={{ minHeight: 100 }}
-              />
-              {/* Conflict zone overlay - middle section */}
-              <div
-                className="absolute inset-0 pointer-events-none flex justify-center items-stretch"
-                aria-hidden
-              >
-                <div className="w-1/3 opacity-30 bg-red-500" />
-              </div>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                BPM: 128
-              </span>
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                Key: Cm
-              </span>
-              <span className="rounded px-2 py-1 text-xs text-[#e0e0e0]/50 bg-[#0a0a0a]">
-                Size: 4.2MB
-              </span>
-            </div>
-            <div className="mt-4 flex gap-2">
-              <button
-                onClick={() => wavesurferTheirsRef.current?.playPause()}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[#e0e0e0]/70 hover:border-[#e0e0e0]/40 transition-colors"
-              >
-                Preview
-              </button>
-              <button
-                onClick={() => handleResolve('theirs')}
-                disabled={resolving}
-                className="rounded-lg px-4 py-2 text-sm font-medium text-white bg-red-500 hover:bg-red-400 disabled:opacity-50 transition-colors"
-              >
-                Keep Theirs
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Center divider with navigation arrows */}
-        <div className="flex justify-center gap-4 mb-8">
-          <button className="rounded-full p-2 text-[#e0e0e0]/50 hover:text-white bg-[#111] border border-white/10 transition-colors">
-            ◀
-          </button>
-          <button className="rounded-full p-2 text-[#e0e0e0]/50 hover:text-white bg-[#111] border border-white/10 transition-colors">
-            ▶
-          </button>
-        </div>
-
-        {/* Bottom sticky bar */}
-        <div className="fixed bottom-0 left-0 right-0 flex items-center justify-between px-6 py-4 bg-[#111] border-t border-white/10">
-          <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-amber-400" />
-            <span className="text-[#e0e0e0]/50 text-sm">
-              Resolving <span className="text-white font-medium">1 conflict</span> in {trackName}.mp3
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <button className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[#e0e0e0]/70 hover:border-[#e0e0e0]/40 transition-colors">
-              Open in Editor
-            </button>
-            <button className="rounded-lg px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors">
-              Confirm Merge
-            </button>
-          </div>
+        <div className="flex gap-3">
+          <Link
+            to={`/project/${projectId}`}
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm text-[#e0e0e0]/70 hover:border-[#e0e0e0]/40 transition-colors"
+          >
+            Back to Composition
+          </Link>
+          {resolved && (
+            <Link
+              to={`/project/${projectId}`}
+              className="rounded-lg px-6 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 transition-colors"
+            >
+              Done
+            </Link>
+          )}
         </div>
       </div>
     </div>

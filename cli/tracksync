@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""
+TrackSync CLI — sync music projects between TrackSync server and your DAW.
+
+Usage:
+  tracksync clone <server_url> <project_id> [--dir <directory>]
+  tracksync push  [-m <message>] [--producer <name>]
+  tracksync pull  [--producer <name>]
+  tracksync status
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+from pathlib import Path
+
+try:
+    import requests
+except ImportError:
+    print("Error: 'requests' is required. Install it with: pip install requests")
+    sys.exit(1)
+
+CONFIG_FILE = ".tracksync"
+TRACKED_EXTENSIONS = {".wav", ".mp3", ".flac", ".ogg", ".aiff"}
+
+
+def md5(path: Path) -> str:
+    h = hashlib.md5()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def load_config() -> dict:
+    config_path = Path(CONFIG_FILE)
+    if not config_path.exists():
+        for parent in Path.cwd().parents:
+            candidate = parent / CONFIG_FILE
+            if candidate.exists():
+                config_path = candidate
+                break
+        else:
+            print(f"Error: No {CONFIG_FILE} found. Run 'tracksync clone' first.")
+            sys.exit(1)
+
+    with open(config_path) as f:
+        return json.load(f)
+
+
+def save_config(config: dict, directory: Path = None):
+    target = (directory or Path.cwd()) / CONFIG_FILE
+    with open(target, "w") as f:
+        json.dump(config, f, indent=2)
+
+
+def api_url(config: dict, path: str) -> str:
+    base = config["server_url"].rstrip("/")
+    return f"{base}/api{path}"
+
+
+# ─── CLONE ────────────────────────────────────────────────────────
+
+def cmd_clone(args):
+    server = args.server_url.rstrip("/")
+    project_id = args.project_id
+    target_dir = Path(args.dir) if args.dir else Path.cwd() / project_id
+
+    print(f"Cloning project '{project_id}' from {server}...")
+
+    url = f"{server}/api/projects/{project_id}/clone"
+    resp = requests.get(url)
+    if resp.status_code != 200:
+        print(f"Error: {resp.status_code} — {resp.text}")
+        sys.exit(1)
+
+    manifest = resp.json()
+    project = manifest["project"]
+    tracks = manifest["tracks"]
+
+    target_dir.mkdir(parents=True, exist_ok=True)
+    stems_dir = target_dir / "stems"
+    stems_dir.mkdir(exist_ok=True)
+
+    print(f"  Project: {project['name']}")
+    print(f"  Tracks:  {len(tracks)}")
+    print()
+
+    checksums = {}
+    for t in tracks:
+        filename = t["filename"]
+        download_url = f"{server}/api{t['download_url']}"
+        out_path = stems_dir / filename
+
+        print(f"  ↓ {filename}...", end=" ", flush=True)
+        r = requests.get(download_url)
+        if r.status_code == 200 and r.headers.get("content-type", "").startswith("audio"):
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+            checksums[filename] = md5(out_path)
+            print("done")
+        elif r.status_code == 200:
+            data = r.json()
+            if "redirect" in data:
+                r2 = requests.get(data["redirect"])
+                if r2.status_code == 200:
+                    with open(out_path, "wb") as f:
+                        f.write(r2.content)
+                    checksums[filename] = md5(out_path)
+                    print("done (via storage)")
+                else:
+                    print(f"failed (storage {r2.status_code})")
+            else:
+                print("skipped (unexpected response)")
+        else:
+            print(f"failed ({r.status_code})")
+
+    config = {
+        "server_url": server,
+        "project_id": project_id,
+        "project_name": project["name"],
+        "latest_commit": manifest.get("latest_commit"),
+        "checksums": checksums,
+        "stems_dir": "stems",
+    }
+    save_config(config, target_dir)
+
+    print()
+    print(f"Done! Project cloned to: {target_dir}")
+    print(f"  Stems are in: {stems_dir}")
+    print()
+    print("Open the stems in LMMS, then use:")
+    print("  tracksync push -m 'your message'   — to push changes")
+    print("  tracksync pull                      — to pull updates")
+    print("  tracksync status                    — to check sync status")
+
+
+# ─── PUSH ─────────────────────────────────────────────────────────
+
+def cmd_push(args):
+    config = load_config()
+    project_id = config["project_id"]
+    stems_dir = Path(config.get("stems_dir", "stems"))
+    old_checksums = config.get("checksums", {})
+    message = args.message or "Update from LMMS"
+    producer = args.producer or "lmms-user"
+
+    if not stems_dir.exists():
+        print(f"Error: stems directory '{stems_dir}' not found.")
+        sys.exit(1)
+
+    changed = []
+    new_checksums = dict(old_checksums)
+
+    for f in sorted(stems_dir.iterdir()):
+        if f.suffix.lower() not in TRACKED_EXTENSIONS:
+            continue
+        current_hash = md5(f)
+        if f.name not in old_checksums or old_checksums[f.name] != current_hash:
+            changed.append(f)
+            new_checksums[f.name] = current_hash
+
+    if not changed:
+        print("Nothing to push — all stems are up to date.")
+        return
+
+    print(f"Pushing {len(changed)} changed file(s) to '{config['project_name']}'...")
+    for f in changed:
+        status = "new" if f.name not in old_checksums else "modified"
+        print(f"  {'+'if status == 'new' else '~'} {f.name} ({status})")
+
+    url = api_url(config, f"/projects/{project_id}/push-files")
+    files = [("files", (f.name, open(f, "rb"), "audio/wav")) for f in changed]
+
+    resp = requests.post(url, data={
+        "commit_message": message,
+        "branch": "main",
+        "producer_id": producer,
+    }, files=files)
+
+    for _, (_, fh, _) in files:
+        fh.close()
+
+    if resp.status_code == 200:
+        result = resp.json()
+        config["checksums"] = new_checksums
+        commit_hash = result.get("commit_hash", "")
+        if commit_hash:
+            config["latest_commit"] = commit_hash
+
+        sync_resp = requests.get(api_url(config, f"/projects/{project_id}/sync-status"))
+        if sync_resp.status_code == 200:
+            sync = sync_resp.json()
+            config["latest_commit"] = sync.get("latest_commit", config.get("latest_commit"))
+            config["checksums"] = {**new_checksums, **sync.get("tracks", {})}
+
+        save_config(config)
+        print()
+        print(f"Pushed! '{message}'")
+        print(f"  Tracks updated: {', '.join(result.get('tracks_added', []))}")
+    else:
+        print(f"Error: {resp.status_code} — {resp.text}")
+        sys.exit(1)
+
+
+# ─── PULL ─────────────────────────────────────────────────────────
+
+def cmd_pull(args):
+    config = load_config()
+    project_id = config["project_id"]
+    server = config["server_url"]
+    stems_dir = Path(config.get("stems_dir", "stems"))
+    old_checksums = config.get("checksums", {})
+
+    print(f"Checking for updates on '{config['project_name']}'...")
+
+    sync_url = api_url(config, f"/projects/{project_id}/sync-status")
+    resp = requests.get(sync_url)
+    if resp.status_code != 200:
+        print(f"Error: {resp.status_code} — {resp.text}")
+        sys.exit(1)
+
+    sync = resp.json()
+    remote_tracks = sync.get("tracks", {})
+    remote_commit = sync.get("latest_commit")
+
+    if remote_commit == config.get("latest_commit") and set(remote_tracks.keys()) == set(old_checksums.keys()):
+        all_match = all(remote_tracks.get(k) == old_checksums.get(k) for k in remote_tracks)
+        if all_match:
+            print("Already up to date.")
+            return
+
+    to_download = []
+    for filename, remote_hash in remote_tracks.items():
+        local_hash = old_checksums.get(filename)
+        if remote_hash and remote_hash != local_hash:
+            to_download.append(filename)
+
+    for filename in remote_tracks:
+        if filename not in old_checksums:
+            if filename not in to_download:
+                to_download.append(filename)
+
+    if not to_download:
+        print("Already up to date.")
+        config["latest_commit"] = remote_commit
+        save_config(config)
+        return
+
+    print(f"  Downloading {len(to_download)} updated file(s)...")
+    stems_dir.mkdir(exist_ok=True)
+    new_checksums = dict(old_checksums)
+
+    for filename in to_download:
+        download_url = f"{server}/api/projects/{project_id}/download-track/{filename}"
+        out_path = stems_dir / filename
+
+        print(f"  ↓ {filename}...", end=" ", flush=True)
+        r = requests.get(download_url)
+        if r.status_code == 200 and r.headers.get("content-type", "").startswith("audio"):
+            with open(out_path, "wb") as f:
+                f.write(r.content)
+            new_checksums[filename] = md5(out_path)
+            print("done")
+        elif r.status_code == 200:
+            data = r.json()
+            if "redirect" in data:
+                r2 = requests.get(data["redirect"])
+                if r2.status_code == 200:
+                    with open(out_path, "wb") as f:
+                        f.write(r2.content)
+                    new_checksums[filename] = md5(out_path)
+                    print("done (via storage)")
+                else:
+                    print(f"failed (storage {r2.status_code})")
+        else:
+            print(f"failed ({r.status_code})")
+
+    config["checksums"] = new_checksums
+    config["latest_commit"] = remote_commit
+    save_config(config)
+
+    print()
+    print("Pull complete!")
+
+
+# ─── STATUS ───────────────────────────────────────────────────────
+
+def cmd_status(args):
+    config = load_config()
+    project_id = config["project_id"]
+    stems_dir = Path(config.get("stems_dir", "stems"))
+    old_checksums = config.get("checksums", {})
+
+    print(f"Project: {config['project_name']} ({project_id})")
+    print(f"Server:  {config['server_url']}")
+    print(f"Commit:  {config.get('latest_commit', 'unknown')}")
+    print()
+
+    if not stems_dir.exists():
+        print("  No stems directory found.")
+        return
+
+    local_files = {}
+    for f in sorted(stems_dir.iterdir()):
+        if f.suffix.lower() in TRACKED_EXTENSIONS:
+            local_files[f.name] = md5(f)
+
+    modified = []
+    new_files = []
+    unchanged = []
+
+    for fname, current_hash in local_files.items():
+        if fname not in old_checksums:
+            new_files.append(fname)
+        elif old_checksums[fname] != current_hash:
+            modified.append(fname)
+        else:
+            unchanged.append(fname)
+
+    deleted = [f for f in old_checksums if f not in local_files]
+
+    if not modified and not new_files and not deleted:
+        print("  All stems are up to date (no local changes).")
+    else:
+        if new_files:
+            for f in new_files:
+                print(f"  + {f}  (new)")
+        if modified:
+            for f in modified:
+                print(f"  ~ {f}  (modified)")
+        if deleted:
+            for f in deleted:
+                print(f"  - {f}  (deleted locally)")
+        print()
+        print(f"  {len(new_files)} new, {len(modified)} modified, {len(deleted)} deleted")
+        print("  Run 'tracksync push -m \"message\"' to sync changes.")
+
+    sync_url = api_url(config, f"/projects/{project_id}/sync-status")
+    try:
+        resp = requests.get(sync_url, timeout=3)
+        if resp.status_code == 200:
+            sync = resp.json()
+            remote_commit = sync.get("latest_commit")
+            if remote_commit != config.get("latest_commit"):
+                print()
+                print(f"  Remote has new commits (latest: {remote_commit}).")
+                print("  Run 'tracksync pull' to download updates.")
+    except requests.RequestException:
+        print()
+        print("  (Could not reach server to check for remote updates.)")
+
+
+# ─── MAIN ─────────────────────────────────────────────────────────
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog="tracksync",
+        description="Sync music projects between TrackSync and your DAW.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    clone_p = sub.add_parser("clone", help="Clone a project from TrackSync server")
+    clone_p.add_argument("server_url", help="TrackSync server URL (e.g. http://localhost:3000)")
+    clone_p.add_argument("project_id", help="Project ID to clone")
+    clone_p.add_argument("--dir", help="Target directory (defaults to ./<project_id>)")
+    clone_p.set_defaults(func=cmd_clone)
+
+    push_p = sub.add_parser("push", help="Push local changes to TrackSync")
+    push_p.add_argument("-m", "--message", help="Commit message (default: 'Update from LMMS')")
+    push_p.add_argument("--producer", help="Producer name (default: 'lmms-user')")
+    push_p.set_defaults(func=cmd_push)
+
+    pull_p = sub.add_parser("pull", help="Pull latest changes from TrackSync")
+    pull_p.add_argument("--producer", help="Producer name (default: 'lmms-user')")
+    pull_p.set_defaults(func=cmd_pull)
+
+    status_p = sub.add_parser("status", help="Show local sync status")
+    status_p.set_defaults(func=cmd_status)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()
