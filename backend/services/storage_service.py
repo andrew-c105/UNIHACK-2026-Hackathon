@@ -2,14 +2,20 @@
 TrackSync Storage Service
 Supabase PostgreSQL for metadata, Supabase Storage for audio files,
 with local filesystem fallback.
+Includes in-memory TTL cache for read-heavy endpoints.
 """
 import os
 import uuid
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
+from postgrest.exceptions import APIError
 from supabase import Client
+
+# Cache TTL in seconds (30s for fast reads, invalidated on writes)
+_CACHE_TTL = 30
 
 
 class StorageService:
@@ -18,12 +24,29 @@ class StorageService:
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.supabase_url = os.getenv("SUPABASE_URL", "")
+        self._read_cache = {}
+
+    def _cache_get(self, key: tuple):
+        now = time.monotonic()
+        if key in self._read_cache:
+            val, expiry = self._read_cache[key]
+            if now < expiry:
+                return val
+        return None
+
+    def _cache_set(self, key: tuple, val):
+        self._read_cache[key] = (val, time.monotonic() + _CACHE_TTL)
 
     # ---- Projects (PostgreSQL) ----
 
     def list_projects(self) -> list:
+        key = ("list_projects",)
+        if (c := self._cache_get(key)) is not None:
+            return c
         res = self.sb.table("projects").select("*").order("created_at", desc=True).execute()
-        return res.data or []
+        data = res.data or []
+        self._cache_set(key, data)
+        return data
 
     def create_project(self, project_id: str, name: str, description: str = "") -> dict:
         row = {
@@ -33,11 +56,27 @@ class StorageService:
         }
         res = self.sb.table("projects").upsert(row).execute()
         (self.data_dir / project_id / "tracks").mkdir(parents=True, exist_ok=True)
+        self._read_cache.clear()
         return res.data[0] if res.data else row
 
     def get_project(self, project_id: str) -> Optional[dict]:
+        key = ("get_project", project_id)
+        if (c := self._cache_get(key)) is not None:
+            return c
         res = self.sb.table("projects").select("*").eq("id", project_id).execute()
-        return res.data[0] if res.data else None
+        data = res.data[0] if res.data else None
+        self._cache_set(key, data)
+        return data
+
+    def update_project(self, project_id: str, description: Optional[str] = None) -> Optional[dict]:
+        if description is not None:
+            try:
+                self.sb.table("projects").update({"description": description}).eq("id", project_id).execute()
+            except Exception:
+                pass
+            self._read_cache.clear()
+        return self.get_project(project_id)
+
 
     # ---- Commits (PostgreSQL) ----
 
@@ -51,16 +90,22 @@ class StorageService:
             "tracks_changed": tracks_changed,
         }
         res = self.sb.table("commits").insert(row).execute()
+        self._read_cache.clear()
         return res.data[0] if res.data else row
 
     def get_commits(self, project_id: str, limit: int = 20) -> list:
+        key = ("get_commits", project_id, limit)
+        if (c := self._cache_get(key)) is not None:
+            return c
         res = (self.sb.table("commits")
                .select("*")
                .eq("project_id", project_id)
                .order("created_at", desc=True)
                .limit(limit)
                .execute())
-        return res.data or []
+        data = res.data or []
+        self._cache_set(key, data)
+        return data
 
     # ---- Tracks (PostgreSQL) ----
 
@@ -96,7 +141,7 @@ class StorageService:
     # ---- Pull Requests (PostgreSQL) ----
 
     def create_pr(self, project_id: str, branch: str, author: str,
-                  has_conflicts: bool = False) -> dict:
+                  has_conflicts: bool = False, target_branch: str = "main") -> dict:
         row = {
             "project_id": project_id,
             "branch": branch,
@@ -104,7 +149,11 @@ class StorageService:
             "status": "open",
             "has_conflicts": has_conflicts,
         }
-        res = self.sb.table("pull_requests").insert(row).execute()
+        try:
+            res = self.sb.table("pull_requests").insert({**row, "target_branch": target_branch}).execute()
+        except APIError:
+            res = self.sb.table("pull_requests").insert(row).execute()
+        self._read_cache.clear()
         return res.data[0] if res.data else row
 
     def get_pr(self, pr_id: str) -> Optional[dict]:
@@ -112,18 +161,24 @@ class StorageService:
         return res.data[0] if res.data else None
 
     def get_prs_for_project(self, project_id: str) -> list:
+        key = ("get_prs_for_project", project_id)
+        if (c := self._cache_get(key)) is not None:
+            return c
         res = (self.sb.table("pull_requests")
                .select("*")
                .eq("project_id", project_id)
                .order("created_at", desc=True)
                .execute())
-        return res.data or []
+        data = res.data or []
+        self._cache_set(key, data)
+        return data
 
     def merge_pr(self, pr_id: str):
         self.sb.table("pull_requests").update({
             "status": "merged",
             "merged_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", pr_id).execute()
+        self._read_cache.clear()
 
     # ---- PR Tracks ----
 
@@ -143,6 +198,41 @@ class StorageService:
     def get_pr_tracks(self, pr_id: str) -> list:
         res = self.sb.table("pr_tracks").select("*").eq("pr_id", pr_id).execute()
         return res.data or []
+
+    # ---- Issues ----
+
+    def create_issue(self, project_id: str, title: str, description: str,
+                     author: str, assignees: list) -> dict:
+        row = {
+            "project_id": project_id,
+            "title": title,
+            "description": description or "",
+            "author": author,
+            "assignees": assignees or [],
+            "status": "open",
+        }
+        try:
+            res = self.sb.table("issues").insert(row).execute()
+            self._read_cache.clear()
+            return res.data[0] if res.data else row
+        except APIError:
+            return row
+
+    def get_issues_for_project(self, project_id: str) -> list:
+        key = ("get_issues_for_project", project_id)
+        if (c := self._cache_get(key)) is not None:
+            return c
+        try:
+            res = (self.sb.table("issues")
+                   .select("*")
+                   .eq("project_id", project_id)
+                   .order("created_at", desc=True)
+                   .execute())
+            data = res.data or []
+            self._cache_set(key, data)
+            return data
+        except APIError:
+            return []
 
     # ---- Audio file storage ----
 
@@ -178,8 +268,8 @@ class StorageService:
         """Return URL for main composition. Try Supabase first, then local."""
         mp3_local = self.data_dir / project_id / "main.mp3"
         if mp3_local.exists():
-            return f"/api/audio/{project_id}/main.mp3"
+            return f"/audio/{project_id}/main.mp3"
         wav_local = self.data_dir / project_id / "main.wav"
         if wav_local.exists():
-            return f"/api/audio/{project_id}/main.wav"
+            return f"/audio/{project_id}/main.wav"
         return self.get_public_url("mixes", f"{project_id}/main.mp3")
