@@ -1,0 +1,14 @@
+{
+  "name": "tracksync",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && source venv/bin/activate && uvicorn main:app --reload --port 8000",
+    "build": "cd frontend && npm run build",
+    "start:backend": "cd backend && source venv/bin/activate && uvicorn main:app --port 8000"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
