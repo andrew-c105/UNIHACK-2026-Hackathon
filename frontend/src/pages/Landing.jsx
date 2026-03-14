@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Navbar from '../components/Navbar';
+import { TextLoop } from '../components/ui/text-loop';
 
 // Album cover URLs — replace or add your own here
 const ALBUM_COVERS = [
-  'https://www.sleek-mag.com/wp-content/uploads/2016/08/AlbumCovers_Blonde-1200x1200.jpg',
+  'https://upload.wikimedia.org/wikipedia/en/7/74/Ye_album_cover.jpg',
   'https://i.cbc.ca/ais/1.4574015,1614648570000/full/max/0/default.jpg?im=Crop%2Crect%3D%280%2C0%2C2000%2C2000%29%3B',
-  'https://upload.wikimedia.org/wikipedia/en/7/70/Graduation_%28album%29.jpg',
+  'https://media.pitchfork.com/photos/638902d5f777c8e284615da3/1:1/w_1500,h_1500,c_limit/SZA.jpg',
+  'https://qodeinteractive.com/magazine/wp-content/uploads/2020/06/16-Tame-Impala.jpg'
 ];
 
 // How often covers rotate (ms)
@@ -112,8 +114,9 @@ export default function Landing() {
 
         .halide-canvas {
           position: relative;
-          width: 420px;
-          height: 420px;
+          width: 600px;
+          height: 600px;
+          border-radius: 10px;
           transform-style: preserve-3d;
           transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -147,8 +150,8 @@ export default function Landing() {
 
         .halide-title {
           font-family: 'Syncopate', sans-serif;
-          font-size: clamp(4rem, 12vw, 12rem);
-          line-height: 0.85;
+          font-size: clamp(5rem, 14vw, 14rem);
+          line-height: 0.8;
           letter-spacing: -0.04em;
           font-weight: 700;
           text-align: center;
@@ -159,12 +162,12 @@ export default function Landing() {
 
         .halide-subtitle {
           font-family: 'Inter', sans-serif;
-          font-size: clamp(0.8rem, 1.8vw, 1.2rem);
-          letter-spacing: 0.2em;
-          color: rgba(255, 255, 255, 0.85);
-          margin-top: 1.5rem;
+          font-size: clamp(1rem, 2.5vw, 1.8rem);
+          letter-spacing: 0.15em;
+          color: rgba(255, 255, 255, 1);
+          margin-top: 1rem;
           text-align: center;
-          font-weight: 600;
+          font-weight: 900;
           mix-blend-mode: difference;
         }
 
@@ -222,9 +225,15 @@ export default function Landing() {
         {/* Hero text — flat, not inside 3D canvas */}
         <div className="halide-hero-overlay">
           <h1 className="halide-title">TRACKSYNC</h1>
-          <p className="halide-subtitle">
-            VERSION CONTROL FOR YOUR MUSIC PROJECTS
-          </p>
+
+          <div className="halide-subtitle mt-4">
+            <TextLoop interval={3}>
+              <span>VERSION CONTROL FOR YOUR MUSIC PROJECTS</span>
+              <span>COLLABORATE SEAMLESSLY ON ANY DAW</span>
+              <span>RESOLVE CONFLICTS WITHOUT LOSING STEMS</span>
+              <span>BRANCH YOUR MIXES WITH CONFIDENCE</span>
+            </TextLoop>
+          </div>
         </div>
 
         {/* 3D Viewport */}
