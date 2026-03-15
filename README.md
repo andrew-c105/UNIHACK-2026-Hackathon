@@ -4,6 +4,8 @@
 
 Built for UNIHACK 2026.
 
+DEMO VIDEO: [TRACKSYNC](https://www.youtube.com/watch?v=fhlOkANMoIU&t=2s)
+
 ## Tech Stack
 
 - **Frontend:** React, Tailwind CSS, Wavesurfer.js, JavaScript
