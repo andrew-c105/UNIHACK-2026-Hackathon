@@ -65,6 +65,17 @@ class LocalStorageService:
             self._save()
         return self._db["projects"][project_id]
 
+    def delete_project(self, project_id: str) -> bool:
+        import shutil
+        if project_id in self._db["projects"]:
+            del self._db["projects"][project_id]
+            self._save()
+            proj_dir = self.data_dir / project_id
+            if proj_dir.exists():
+                shutil.rmtree(proj_dir, ignore_errors=True)
+            return True
+        return False
+
     # ---- Commits ----
 
     def save_commit(self, project_id: str, commit_hash: str, message: str,

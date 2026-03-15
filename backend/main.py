@@ -113,6 +113,12 @@ def get_project(project_id: str):
                     return {"project": out}
     return {"project": out}
 
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: str):
+    success = storage_service.delete_project(project_id)
+    if not success:
+        raise HTTPException(404, "Project not found or could not be deleted")
+    return {"success": True}
 
 class ProjectUpdate(BaseModel):
     description: Optional[str] = None

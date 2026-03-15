@@ -77,6 +77,19 @@ class StorageService:
             self._read_cache.clear()
         return self.get_project(project_id)
 
+    def delete_project(self, project_id: str) -> bool:
+        import shutil
+        try:
+            self.sb.table("projects").delete().eq("id", project_id).execute()
+        except Exception:
+            return False
+            
+        proj_dir = self.data_dir / project_id
+        if proj_dir.exists():
+            shutil.rmtree(proj_dir, ignore_errors=True)
+            
+        self._read_cache.clear()
+        return True
 
     # ---- Commits (PostgreSQL) ----
 
