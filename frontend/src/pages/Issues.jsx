@@ -91,7 +91,7 @@ export default function Issues() {
           {!showCreate && (
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors"
+              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg transition-colors shadow-sm"
             >
               New Issue
             </button>

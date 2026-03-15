@@ -23,13 +23,13 @@ function BranchDropdown({ value, options, onChange, placeholder = "Select branch
   }, []);
 
   return (
-    <div className="relative inline-block min-w-[160px]" ref={ref}>
+    <div className="relative inline-block min-w-[200px]" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#0a0a0a] border border-white/10 hover:border-[#e0e0e0]/40 transition-colors text-sm text-left"
+        className="w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-[#0a0a0a] border border-white/10 hover:border-[#e0e0e0]/40 transition-colors text-base font-medium text-left shadow-sm"
       >
         <span className={value ? "text-white" : "text-[#e0e0e0]/40"}>{value || placeholder}</span>
-        <svg className="w-4 h-4 text-[#e0e0e0]/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg className="w-5 h-5 text-[#e0e0e0]/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
@@ -149,7 +149,7 @@ export default function PullRequests() {
           {!showCreate && (
             <button
               onClick={() => setShowCreate(true)}
-              className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-sm transition-colors"
+              className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-lg transition-colors shadow-sm"
             >
               New Pull Request
             </button>

@@ -1,12 +1,7 @@
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { useState, useEffect } from 'react';
-import { ImageUploadField } from './ui/image-uploader';
 
 export default function Navbar() {
   const location = useLocation();
-  const [logoDataUrl, setLogoDataUrl] = useState(() => {
-    return localStorage.getItem('tracksync_logo') || null;
-  });
 
   const isProjectsActive = location.pathname === '/projects' || location.pathname.startsWith('/project/');
   const isLanding = location.pathname === '/';
@@ -19,20 +14,16 @@ export default function Navbar() {
     <nav className={`w-full ${navBg} px-8 py-5 flex items-center justify-between`} style={{ fontFamily: "'Inter', sans-serif" }}>
       {/* Logo */}
       <div className="flex items-center gap-4">
-        <div className="w-12 h-12 relative group rounded-xl overflow-hidden shrink-0">
-          <ImageUploadField
-             value={logoDataUrl}
-             onChange={async (file) => {
-               if (!file) return;
-               const reader = new FileReader();
-               reader.onload = (e) => {
-                 const data = e.target.result;
-                 setLogoDataUrl(data);
-                 localStorage.setItem('tracksync_logo', data);
-               };
-               reader.readAsDataURL(file);
+        <div className="w-12 h-12 relative group rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-white/5 border border-white/10 shadow-sm">
+          <img
+             src="/logo.png"
+             alt="TrackSync"
+             className="w-full h-full object-cover"
+             onError={(e) => {
+               // Fallback if logo.png is not yet added
+               e.target.style.display = 'none';
+               e.target.parentElement.innerHTML = '<span class="text-xl text-[#e0e0e0]">♪</span>';
              }}
-             className="w-full h-full border border-white/10 shadow-sm"
           />
         </div>
         
