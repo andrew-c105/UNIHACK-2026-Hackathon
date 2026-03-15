@@ -35,7 +35,7 @@ class GitService:
         proj_path.mkdir(parents=True, exist_ok=True)
         (proj_path / "tracks").mkdir(exist_ok=True)
         if not (proj_path / ".git").exists():
-            repo = Repo.init(proj_path)
+            repo = Repo.init(proj_path, initial_branch="master")
             self._ensure_no_gpg_sign(repo)
             (proj_path / "tracks" / ".gitkeep").touch()
             repo.index.add(["tracks/.gitkeep"])
