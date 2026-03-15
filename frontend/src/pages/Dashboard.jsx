@@ -25,7 +25,7 @@ export default function Dashboard() {
   const [history, setHistory] = useState([]);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [branch, setBranch] = useState('main');
+  const [branch, setBranch] = useState('master');
   const [loading, setLoading] = useState(true);
   const [mainAudioUrl, setMainAudioUrl] = useState(null);
   const [description, setDescription] = useState('');
@@ -109,7 +109,7 @@ export default function Dashboard() {
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Breadcrumb */}
         <nav className="text-sm text-[#e0e0e0]/50 mb-4">
-          <Link to="/" className="hover:text-white transition-colors">projects</Link>
+          <Link to="/projects" className="hover:text-white transition-colors">projects</Link>
           <span className="mx-2">/</span>
           <span className="text-white">{project?.name || '…'}</span>
         </nav>
@@ -296,7 +296,7 @@ export default function Dashboard() {
                 )}
                 {history.length > 0 && (
                   <div className="relative">
-                    <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-white/10" />
+                    <div className="absolute left-[6px] top-2 bottom-2 w-0.5 bg-white/10" />
                     <div className="space-y-0">
                       {history.map((entry, idx) => (
                         <div key={entry.id} className="relative flex gap-4 pb-6 last:pb-0">

@@ -141,7 +141,7 @@ class StorageService:
     # ---- Pull Requests (PostgreSQL) ----
 
     def create_pr(self, project_id: str, branch: str, author: str,
-                  has_conflicts: bool = False, target_branch: str = "main") -> dict:
+                  has_conflicts: bool = False, target_branch: str = "master") -> dict:
         row = {
             "project_id": project_id,
             "branch": branch,

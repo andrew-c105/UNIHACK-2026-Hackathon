@@ -122,7 +122,7 @@ class LocalStorageService:
     # ---- Pull Requests ----
 
     def create_pr(self, project_id: str, branch: str, author: str,
-                  has_conflicts: bool = False, target_branch: str = "main") -> dict:
+                  has_conflicts: bool = False, target_branch: str = "master") -> dict:
         now = datetime.now(timezone.utc).isoformat()
         pr_id = str(uuid.uuid4())[:8]
         row = {
