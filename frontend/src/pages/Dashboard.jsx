@@ -108,7 +108,7 @@ export default function Dashboard() {
     <div className="min-h-screen bg-[#0a0a0a]">
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-[1600px] w-full mx-auto px-8 py-8">
         {/* Breadcrumb */}
         <nav className="text-sm text-[#e0e0e0]/50 mb-4">
           <Link to="/projects" className="hover:text-white transition-colors">projects</Link>
@@ -118,63 +118,52 @@ export default function Dashboard() {
 
         <ProjectTabs projectId={projectId} activeTab="composition" />
 
-        {/* Header: cover + title + description */}
-        <div className="flex gap-6 mb-6">
-          <div className="shrink-0 w-32 h-32 relative">
-             <ImageUploadField
-                value={project?.cover_url ? audioUrl(project.cover_url) : null}
-                onChange={handleCoverUpload}
-                className={`w-full h-full ${uploadingCover ? 'opacity-50 pointer-events-none' : ''}`}
-             />
-             {uploadingCover && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                </div>
-             )}
+        {/* Header: cover + title + right side actions */}
+        <div className="flex gap-10 mb-12 items-center justify-between">
+          <div className="flex gap-10 items-center">
+            <div className="shrink-0 w-56 h-56 relative shadow-2xl rounded-2xl overflow-hidden">
+               <ImageUploadField
+                  value={project?.cover_url ? audioUrl(project.cover_url) : null}
+                  onChange={handleCoverUpload}
+                  className={`w-full h-full border-none rounded-2xl ${uploadingCover ? 'opacity-50 pointer-events-none' : ''}`}
+               />
+               {uploadingCover && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                     <div className="w-10 h-10 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                  </div>
+               )}
+            </div>
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center gap-4 flex-wrap mb-4">
+                <h1 className="font-sans text-5xl md:text-6xl font-bold text-white tracking-tight drop-shadow-sm">
+                  {project?.name || 'Composition'}
+                </h1>
+                <button
+                  onClick={copyId}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#111] border border-white/10 hover:border-white/30 transition-all group shadow-sm mt-1"
+                  title="Copy Project ID for LMMS"
+                >
+                  <span className="font-mono text-sm font-medium text-[#e0e0e0]/50 group-hover:text-white transition-colors">
+                    {projectId}
+                  </span>
+                  <span className="text-sm text-[#e0e0e0]/40 group-hover:text-emerald-400 transition-colors">
+                    {copied ? '✓' : '⎘'}
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="font-sans text-3xl font-bold text-white tracking-tight">
-                {project?.name || 'Composition'}
-              </h1>
-              <button
-                onClick={copyId}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#0a0a0a] border border-white/10 hover:border-[#e0e0e0]/40 transition-colors group"
-                title="Copy Project ID for LMMS"
-              >
-                <span className="font-mono text-xs text-[#e0e0e0]/50 group-hover:text-white transition-colors">
-                  {projectId}
-                </span>
-                <span className="text-xs text-[#e0e0e0]/30 group-hover:text-emerald-400 transition-colors">
-                  {copied ? '✓' : '⎘'}
-                </span>
-              </button>
-            </div>
-            <div className="flex items-center gap-3">
-              <BranchSelector projectId={projectId} value={branch} onChange={setBranch} />
-            </div>
-            <div className="flex items-center gap-4 mt-2 w-full">
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Add a description…"
-                rows={2}
-                className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-[#111] border border-white/10 text-[#e0e0e0] placeholder-[#e0e0e0]/30 focus:border-[#e0e0e0]/40 outline-none resize-none text-base transition-colors font-sans"
-              />
-              <button
-                onClick={saveDescription}
-                disabled={savingDesc}
-                className="shrink-0 h-[52px] px-6 rounded-xl bg-[#e0e0e0] hover:bg-white text-[#0a0a0a] font-semibold text-sm disabled:opacity-50 transition shadow-sm ml-auto"
-              >
-                {savingDesc ? '…' : 'Save'}
-              </button>
-            </div>
+          
+          <div className="shrink-0">
+             <BranchSelector projectId={projectId} value={branch} onChange={setBranch} />
           </div>
         </div>
+            
+
 
         <div className="mb-6 rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
-          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/20">
-            <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
+          <div className="px-8 py-5 border-b border-white/10 flex items-center justify-between bg-black/20">
+            <h2 className="font-sans font-bold text-white tracking-wide text-base uppercase">
               Main mix — {branch}
             </h2>
             <span className="text-[#e0e0e0]/40 text-xs">
@@ -200,8 +189,8 @@ export default function Dashboard() {
           {/* LEFT COLUMN — Track list */}
           <aside className="w-[320px] shrink-0">
             <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg flex flex-col max-h-[700px]">
-              <div className="px-5 py-4 border-b border-white/10 bg-black/20 shrink-0">
-                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
+              <div className="px-6 py-5 border-b border-white/10 bg-black/20 shrink-0">
+                <h2 className="font-sans font-bold text-white tracking-wide text-base uppercase">
                   Tracks ({tracks.length})
                 </h2>
               </div>
@@ -246,8 +235,8 @@ export default function Dashboard() {
           <main className="flex-1 min-w-0 space-y-6">
             {/* Waveform player */}
             <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
-              <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/20">
-                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
+              <div className="px-8 py-5 border-b border-white/10 flex items-center justify-between bg-black/20">
+                <h2 className="font-sans font-bold text-white tracking-wide text-base uppercase">
                   {activeTrack?.name || 'Select a track'}
                 </h2>
                 {activeTrack && (
@@ -271,8 +260,8 @@ export default function Dashboard() {
 
             {/* Commit History */}
             <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
-              <div className="px-6 py-4 border-b border-white/10 bg-black/20">
-                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
+              <div className="px-8 py-5 border-b border-white/10 bg-black/20">
+                <h2 className="font-sans font-bold text-white tracking-wide text-base uppercase">
                   Commit History
                 </h2>
               </div>

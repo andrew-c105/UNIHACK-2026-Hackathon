@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { api } from '../api';
+import { api, audioUrl } from '../api';
 import Navbar from '../components/Navbar';
 import { NativeDelete } from '../components/ui/delete-button';
 
@@ -95,15 +95,15 @@ export default function Projects() {
                 className="flex items-center gap-5 flex-1 min-w-0"
               >
                 {p.cover_url ? (
-                  <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm border border-white/10">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 shadow-sm border border-white/10">
                     <img
-                      src={p.cover_url}
+                      src={audioUrl(p.cover_url)}
                       alt={`${p.name} cover`}
                       className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                     />
                   </div>
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-[#e0e0e0]/10 flex items-center justify-center text-[#e0e0e0] text-3xl shrink-0 transition group-hover:bg-[#e0e0e0]/20 shadow-sm border border-transparent">
+                  <div className="w-16 h-16 rounded-xl bg-[#e0e0e0]/10 flex items-center justify-center text-[#e0e0e0] text-3xl shrink-0 transition group-hover:bg-[#e0e0e0]/20 shadow-sm border border-transparent">
                     ♪
                   </div>
                 )}

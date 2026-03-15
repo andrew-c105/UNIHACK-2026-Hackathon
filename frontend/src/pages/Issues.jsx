@@ -63,9 +63,9 @@ export default function Issues() {
     <div className="min-h-screen bg-[#0a0a0a]">
       <Navbar />
 
-      <div className="max-w-6xl mx-auto px-6 py-6">
+      <div className="max-w-[1600px] w-full mx-auto px-8 py-8">
         {/* Breadcrumb */}
-        <nav className="text-sm text-[#e0e0e0]/50 mb-4">
+        <nav className="text-sm text-[#e0e0e0]/50 mb-6">
           <Link to="/projects" className="hover:text-white transition-colors">projects</Link>
           <span className="mx-2">/</span>
           <Link to={`/project/${projectId}`} className="hover:text-white transition-colors">
@@ -75,15 +75,17 @@ export default function Issues() {
           <span className="text-white">issues</span>
         </nav>
 
-        <ProjectTabs projectId={projectId} activeTab="issues" />
+        <div className="mb-10">
+          <ProjectTabs projectId={projectId} activeTab="issues" />
+        </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-10">
           <div>
-            <h1 className="font-sans text-2xl font-semibold text-white tracking-wide">Issues</h1>
-            <div className="flex gap-4 mt-1 text-sm text-[#e0e0e0]/50">
-              <span>{openCount} open</span>
-              <span>{closedCount} closed</span>
+            <h1 className="font-sans text-4xl md:text-5xl font-bold text-white tracking-tight drop-shadow-sm">Issues</h1>
+            <div className="flex gap-4 mt-3 text-lg text-[#e0e0e0]/50">
+              <span className="font-medium">{openCount} open</span>
+              <span className="font-medium">{closedCount} closed</span>
             </div>
           </div>
           {!showCreate && (
@@ -162,14 +164,14 @@ export default function Issues() {
         )}
 
         {/* Issue list */}
-        <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden">
+        <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
           {loading && (
-            <div className="px-6 py-12 text-center text-[#e0e0e0]/40 text-sm">Loading…</div>
+            <div className="px-8 py-16 text-center text-[#e0e0e0]/40 text-lg">Loading…</div>
           )}
           {!loading && issues.length === 0 && (
-            <div className="px-6 py-12 text-center">
-              <p className="text-[#e0e0e0]/40 text-sm mb-2">No issues yet.</p>
-              <p className="text-[#e0e0e0]/30 text-xs">
+            <div className="px-8 py-20 text-center">
+              <p className="text-[#e0e0e0]/60 text-xl font-medium mb-3">No issues yet.</p>
+              <p className="text-[#e0e0e0]/40 text-base">
                 Create an issue to track bugs, ideas, or tasks.
               </p>
             </div>
@@ -177,36 +179,40 @@ export default function Issues() {
           {!loading && issues.length > 0 && (
             <ul className="divide-y divide-white/10">
               {issues.map((issue) => (
-                <li key={issue.id} className="px-6 py-5 hover:bg-white/5 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
+                <li key={issue.id} className="block px-8 py-6 hover:bg-white/5 transition-colors group">
+                  <div className="flex items-start justify-between gap-6">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[issue.status] || STATUS_STYLES.open}`}>
+                      <div className="flex items-center gap-4">
+                        <span className={`inline-block rounded-md px-2.5 py-1 text-sm font-bold tracking-wide uppercase ${STATUS_STYLES[issue.status] || STATUS_STYLES.open}`}>
                           {issue.status}
                         </span>
-                        <h3 className="text-white font-medium truncate">{issue.title}</h3>
+                        <h3 className="text-white text-xl font-semibold truncate group-hover:text-[#e0e0e0] transition-colors">{issue.title}</h3>
                       </div>
                       {issue.description && (
-                        <p className="mt-1 text-sm text-[#e0e0e0]/60 line-clamp-2">{issue.description}</p>
+                        <p className="mt-3 text-base text-[#e0e0e0]/60 line-clamp-2">{issue.description}</p>
                       )}
-                      <div className="flex items-center gap-3 mt-2 text-sm text-[#e0e0e0]/40 flex-wrap">
+                      <div className="flex items-center gap-3 mt-4 text-base font-medium text-[#e0e0e0]/40 flex-wrap">
                         <span>#{issue.id}</span>
+                        <span>•</span>
                         <span>by {issue.author || '—'}</span>
                         {issue.assignees?.length > 0 && (
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-2 border-l border-white/10 pl-3 ml-1">
                             {issue.assignees.map((a) => (
-                              <span key={a} className="rounded px-1.5 py-0.5 bg-white/10 text-[#e0e0e0]/70">
+                              <span key={a} className="rounded-md px-2 py-1 bg-white/10 text-[#e0e0e0]/70 text-sm">
                                 {a}
                               </span>
                             ))}
                           </span>
                         )}
                         {issue.created_at && (
-                          <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                          <>
+                            <span>•</span>
+                            <span>{new Date(issue.created_at).toLocaleDateString()}</span>
+                          </>
                         )}
                       </div>
                     </div>
-                    <svg className="w-5 h-5 text-[#e0e0e0]/20 shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg className="w-6 h-6 text-[#e0e0e0]/20 shrink-0 mt-2 group-hover:text-emerald-400 group-hover:translate-x-1 transition-all" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </div>

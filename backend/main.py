@@ -86,7 +86,22 @@ def root():
 @app.get("/projects")
 def list_projects():
     projects = storage_service.list_projects()
-    return {"projects": projects}
+    out_projects = []
+    for project in projects:
+        out = dict(project)
+        project_id = project.get("id")
+        if project_id:
+            proj_path = DATA_DIR / project_id
+            if proj_path.exists():
+                for name in ("cover", "album"):
+                    for ext in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+                        if (proj_path / f"{name}{ext}").exists():
+                            out["cover_url"] = f"/audio/{project_id}/{name}{ext}"
+                            break
+                    if "cover_url" in out:
+                        break
+        out_projects.append(out)
+    return {"projects": out_projects}
 
 
 @app.post("/projects")
