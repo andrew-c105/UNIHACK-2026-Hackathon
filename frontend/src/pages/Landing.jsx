@@ -151,7 +151,7 @@ export default function Landing() {
 
         .halide-title {
           font-family: 'Syncopate', sans-serif;
-          font-size: clamp(5rem, 14vw, 14rem);
+          font-size: clamp(5rem, 14vw, 12rem);
           line-height: 0.8;
           letter-spacing: -0.04em;
           font-weight: 700;

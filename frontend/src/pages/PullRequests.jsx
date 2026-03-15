@@ -138,7 +138,7 @@ export default function PullRequests() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="font-display text-2xl font-semibold text-white tracking-wide">Pull Requests</h1>
+            <h1 className="font-sans text-2xl font-semibold text-white tracking-wide">Pull Requests</h1>
             <div className="flex gap-4 mt-1 text-sm text-[#e0e0e0]/50">
               <span>{openCount} open</span>
               <span>{mergedCount} merged</span>
@@ -157,7 +157,7 @@ export default function PullRequests() {
         {/* Inline New PR creation form */}
         {showCreate && (
           <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden mb-6 p-6">
-            <h3 className="font-display text-lg font-semibold text-white tracking-wide mb-4">
+            <h3 className="font-sans text-lg font-semibold text-white tracking-wide mb-4">
               New Pull Request
             </h3>
 

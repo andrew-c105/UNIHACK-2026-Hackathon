@@ -5,6 +5,7 @@ import Waveform from '../components/Waveform';
 import BranchSelector from '../components/BranchSelector';
 import ProjectTabs from '../components/ProjectTabs';
 import { api, audioUrl } from '../api';
+import { ImageUploadField } from '../components/ui/image-uploader';
 
 const STATUS_COLORS = {
   up: 'bg-emerald-500',
@@ -70,18 +71,19 @@ export default function Dashboard() {
     }
   };
 
-  const handleCoverUpload = async (e) => {
-    const file = e.target.files?.[0];
+  const handleCoverUpload = async (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     setUploadingCover(true);
     try {
       const { url } = await api.uploadCover(projectId, file);
-      setProject((p) => (p ? { ...p, cover_url: url } : null));
+      
+      // Add a timestamp to bypass local caching of the same URL string
+      const timestampUrl = `${url}?t=${new Date().getTime()}`;
+      setProject((p) => (p ? { ...p, cover_url: timestampUrl } : null));
     } catch (err) {
       alert(err.message || 'Upload failed');
     } finally {
       setUploadingCover(false);
-      if (coverInputRef.current) coverInputRef.current.value = '';
     }
   };
 
@@ -118,33 +120,21 @@ export default function Dashboard() {
 
         {/* Header: cover + title + description */}
         <div className="flex gap-6 mb-6">
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif"
-            onChange={handleCoverUpload}
-            className="hidden"
-          />
-          <button
-            onClick={() => coverInputRef.current?.click()}
-            disabled={uploadingCover}
-            className="shrink-0 w-32 h-32 rounded-xl bg-[#111] border border-white/10 overflow-hidden hover:border-white/20 transition-colors flex items-center justify-center"
-          >
-            {project?.cover_url ? (
-              <img
-                src={audioUrl(project.cover_url)}
-                alt="Cover"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <span className="text-3xl text-[#e0e0e0]/30">
-                {uploadingCover ? '…' : '🖼'}
-              </span>
-            )}
-          </button>
-          <div className="flex-1 min-w-0 flex flex-col justify-center gap-2">
+          <div className="shrink-0 w-32 h-32 relative">
+             <ImageUploadField
+                value={project?.cover_url ? audioUrl(project.cover_url) : null}
+                onChange={handleCoverUpload}
+                className={`w-full h-full ${uploadingCover ? 'opacity-50 pointer-events-none' : ''}`}
+             />
+             {uploadingCover && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                   <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                </div>
+             )}
+          </div>
+          <div className="flex-1 min-w-0 flex flex-col justify-center gap-3">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="font-display text-2xl font-semibold text-white tracking-wide">
+              <h1 className="font-sans text-3xl font-bold text-white tracking-tight">
                 {project?.name || 'Composition'}
               </h1>
               <button
@@ -163,18 +153,18 @@ export default function Dashboard() {
             <div className="flex items-center gap-3">
               <BranchSelector projectId={projectId} value={branch} onChange={setBranch} />
             </div>
-            <div className="flex items-start gap-2 mt-1">
+            <div className="flex items-center gap-4 mt-2 w-full">
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Add a description…"
                 rows={2}
-                className="flex-1 min-w-0 px-3 py-2 rounded-lg bg-[#111] border border-white/10 text-[#e0e0e0] placeholder-[#e0e0e0]/30 focus:border-[#e0e0e0]/40 outline-none resize-none text-sm"
+                className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-[#111] border border-white/10 text-[#e0e0e0] placeholder-[#e0e0e0]/30 focus:border-[#e0e0e0]/40 outline-none resize-none text-base transition-colors font-sans"
               />
               <button
                 onClick={saveDescription}
                 disabled={savingDesc}
-                className="shrink-0 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm disabled:opacity-50 transition-colors"
+                className="shrink-0 h-[52px] px-6 rounded-xl bg-[#e0e0e0] hover:bg-white text-[#0a0a0a] font-semibold text-sm disabled:opacity-50 transition shadow-sm ml-auto"
               >
                 {savingDesc ? '…' : 'Save'}
               </button>
@@ -182,10 +172,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Main mix waveform — full composition */}
-        <div className="mb-6 rounded-xl bg-[#111] border border-white/10 overflow-hidden">
-          <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between">
-            <h2 className="font-display font-semibold text-white tracking-wide text-sm">
+        <div className="mb-6 rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
+          <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/20">
+            <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
               Main mix — {branch}
             </h2>
             <span className="text-[#e0e0e0]/40 text-xs">
@@ -209,10 +198,10 @@ export default function Dashboard() {
 
         <div className="flex gap-6">
           {/* LEFT COLUMN — Track list */}
-          <aside className="w-72 shrink-0">
-            <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden">
-              <div className="px-4 py-3 border-b border-white/10">
-                <h2 className="font-display font-semibold text-white tracking-wide text-sm">
+          <aside className="w-[320px] shrink-0">
+            <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg flex flex-col max-h-[700px]">
+              <div className="px-5 py-4 border-b border-white/10 bg-black/20 shrink-0">
+                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
                   Tracks ({tracks.length})
                 </h2>
               </div>
@@ -254,12 +243,11 @@ export default function Dashboard() {
             </div>
           </aside>
 
-          {/* RIGHT COLUMN — Waveform + Commit History */}
           <main className="flex-1 min-w-0 space-y-6">
             {/* Waveform player */}
-            <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden">
-              <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between">
-                <h2 className="font-display font-semibold text-white tracking-wide text-sm">
+            <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
+              <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-black/20">
+                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
                   {activeTrack?.name || 'Select a track'}
                 </h2>
                 {activeTrack && (
@@ -282,9 +270,9 @@ export default function Dashboard() {
             </div>
 
             {/* Commit History */}
-            <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden">
-              <div className="px-6 py-3 border-b border-white/10">
-                <h2 className="font-display font-semibold text-white tracking-wide text-sm">
+            <div className="rounded-2xl bg-[#111] border border-white/10 overflow-hidden shadow-lg">
+              <div className="px-6 py-4 border-b border-white/10 bg-black/20">
+                <h2 className="font-sans font-semibold text-[#e0e0e0] tracking-wide text-sm uppercase">
                   Commit History
                 </h2>
               </div>

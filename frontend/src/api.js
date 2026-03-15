@@ -25,6 +25,7 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify({ description }),
     }),
+  deleteProject: (id) => fetchApi(`/projects/${id}`, { method: 'DELETE' }),
   uploadCover: async (projectId, file) => {
     const form = new FormData();
     form.append('file', file);

@@ -201,7 +201,7 @@ export default function PullRequest() {
         <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="rounded-xl bg-[#111] border border-emerald-500/20 overflow-hidden">
             <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between">
-              <h2 className="font-display font-semibold text-emerald-400 tracking-wide text-sm">
+              <h2 className="font-sans font-semibold text-emerald-400 tracking-wide text-sm">
                 Full composition — {pr.source_branch}
               </h2>
               <span className="text-[#e0e0e0]/40 text-xs">All tracks mixed</span>
@@ -223,7 +223,7 @@ export default function PullRequest() {
           </div>
           <div className="rounded-xl bg-[#111] border border-white/10 overflow-hidden">
             <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between">
-              <h2 className="font-display font-semibold text-white tracking-wide text-sm">
+              <h2 className="font-sans font-semibold text-white tracking-wide text-sm">
                 Full composition — {pr.target_branch}
               </h2>
               <span className="text-[#e0e0e0]/40 text-xs">Base branch</span>
