@@ -35,9 +35,9 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
-  getSession: (projectId, producerId, branch = 'main') =>
+  getSession: (projectId, producerId, branch = 'master') =>
     fetchApi(`/projects/${projectId}/session?producer_id=${producerId || 'producer-1'}&branch=${branch}`),
-  pushFiles: async (projectId, files, commitMessage, branch = 'main', producerId = 'producer-1') => {
+  pushFiles: async (projectId, files, commitMessage, branch = 'master', producerId = 'producer-1') => {
     const form = new FormData();
     form.append('commit_message', commitMessage);
     form.append('branch', branch);
@@ -50,16 +50,16 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
-  pull: (projectId, branch = 'main', producerId = 'producer-1') =>
+  pull: (projectId, branch = 'master', producerId = 'producer-1') =>
     fetchApi(`/projects/${projectId}/pull?branch=${branch}&producer_id=${producerId}`, {
       method: 'POST',
     }),
-  getHistory: (projectId, branch = 'main') =>
+  getHistory: (projectId, branch = 'master') =>
     fetchApi(`/projects/${projectId}/history?branch=${branch}`),
 
   // Branches
   listBranches: (projectId) => fetchApi(`/projects/${projectId}/branches`),
-  createBranch: (projectId, name, base = 'main') =>
+  createBranch: (projectId, name, base = 'master') =>
     fetchApi(`/projects/${projectId}/branches`, {
       method: 'POST',
       body: JSON.stringify({ name, base }),
@@ -67,7 +67,7 @@ export const api = {
 
   // Pull Requests
   listPrs: (projectId) => fetchApi(`/projects/${projectId}/prs`),
-  createPr: (projectId, sourceBranch, targetBranch = 'main', author = 'producer-1') =>
+  createPr: (projectId, sourceBranch, targetBranch = 'master', author = 'producer-1') =>
     fetchApi(`/projects/${projectId}/prs`, {
       method: 'POST',
       body: JSON.stringify({ source_branch: sourceBranch, target_branch: targetBranch, author }),
@@ -87,11 +87,11 @@ export const api = {
     }),
 
   getConflict: (projectId, trackId) => fetchApi(`/projects/${projectId}/conflict?track=${trackId}`),
-  getMainAudio: (projectId, branch = 'main') =>
+  getMainAudio: (projectId, branch = 'master') =>
     fetchApi(`/projects/${projectId}/main-audio?branch=${branch}`),
 
   /** Batch: project + session + history + main_audio in one call. Use for Dashboard. */
-  getDashboard: (projectId, producerId = 'producer-1', branch = 'main') =>
+  getDashboard: (projectId, producerId = 'producer-1', branch = 'master') =>
     fetchApi(`/projects/${projectId}/dashboard?producer_id=${producerId}&branch=${branch}`),
   getWaveform: (projectId, filename, numPeaks = 200) =>
     fetchApi(`/projects/${projectId}/waveform/${filename}?num_peaks=${numPeaks}`),

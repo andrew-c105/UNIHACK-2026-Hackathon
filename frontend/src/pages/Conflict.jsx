@@ -80,7 +80,7 @@ export default function Conflict() {
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Breadcrumb */}
         <nav className="mb-6 text-sm text-[#e0e0e0]/50">
-          <Link to="/" className="hover:text-white transition-colors">Projects</Link>
+          <Link to="/projects" className="hover:text-white transition-colors">Projects</Link>
           <span className="mx-2">&gt;</span>
           <Link to={`/project/${projectId}`} className="hover:text-white transition-colors">{projectName}</Link>
           <span className="mx-2">&gt;</span>

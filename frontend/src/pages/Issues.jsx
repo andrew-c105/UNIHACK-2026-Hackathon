@@ -66,7 +66,7 @@ export default function Issues() {
       <div className="max-w-6xl mx-auto px-6 py-6">
         {/* Breadcrumb */}
         <nav className="text-sm text-[#e0e0e0]/50 mb-4">
-          <Link to="/" className="hover:text-white transition-colors">projects</Link>
+          <Link to="/projects" className="hover:text-white transition-colors">projects</Link>
           <span className="mx-2">/</span>
           <Link to={`/project/${projectId}`} className="hover:text-white transition-colors">
             {project?.name || projectId}

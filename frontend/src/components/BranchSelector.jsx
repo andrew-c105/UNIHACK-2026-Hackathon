@@ -15,7 +15,7 @@ export default function BranchSelector({ projectId, value, onChange }) {
         setBranches(b || []);
         if (!value && current) onChange?.(current);
       })
-      .catch(() => setBranches(['main']));
+      .catch(() => setBranches(['master']));
   }, [projectId]);
 
   useEffect(() => {
