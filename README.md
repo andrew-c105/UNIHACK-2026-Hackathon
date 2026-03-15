@@ -6,9 +6,9 @@ Built for UNIHACK 2026.
 
 ## Tech Stack
 
-- **Frontend:** React, Tailwind CSS, Wavesurfer.js, React Router
+- **Frontend:** React, Tailwind CSS, Wavesurfer.js, JavaScript
 - **Backend:** FastAPI, GitPython, FFmpeg
-- **Storage:** Local filesystem (Supabase optional)
+- **Storage:** Supabase
 
 ## Quick Start
 
@@ -45,7 +45,6 @@ Open **http://localhost:3000**
 | GET | /projects/{id}/pr/{prId} | Pull request |
 | POST | /projects/{id}/pr/{prId}/merge | Merge with conflict resolutions |
 | GET | /projects/{id}/conflict?track=X | Conflict URLs for track |
-| POST | /seed-demo | Seed demo project |
 
 ## Requirements
 
