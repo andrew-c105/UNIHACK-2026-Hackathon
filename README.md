@@ -32,22 +32,6 @@ npm run dev
 
 Open **http://localhost:3000**
 
-### 3. Demo Flow
-
-1. Click **Seed Demo** on the landing page to create a demo project with sample tracks.
-2. Open the project → **Session** → Push your own .wav files or use the demo.
-3. **Pull Latest** to fetch changes.
-4. **View Pull Request** to see track diffs.
-5. **Resolve Conflict** for side-by-side waveform comparison (Wavesurfer.js).
-
-## Jake & Mia Scenario
-
-1. **Jake** adds vocal ostinato + bassline → **Add Changes** → **Push**.
-2. **Mia** clicks **Pull Latest** → sees Jake's changes.
-3. **Mia** prefers her bassline → replaces it → **Push** → creates PR.
-4. **Conflict** on Bass Synth → **Conflict Resolution** screen with two waveforms.
-5. **Mia** chooses **Keep Mine** or **Keep Jake's** → merge → main playback updated.
-
 ## API Endpoints
 
 | Method | Path | Description |
