@@ -26,7 +26,7 @@ export default function Dashboard() {
   const [history, setHistory] = useState([]);
   const [selectedTrack, setSelectedTrack] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [branch, setBranch] = useState('master');
+  const [branch, setBranch] = useState('main');
   const [loading, setLoading] = useState(true);
   const [mainAudioUrl, setMainAudioUrl] = useState(null);
   const [description, setDescription] = useState('');
@@ -118,6 +118,20 @@ export default function Dashboard() {
 
         <ProjectTabs projectId={projectId} activeTab="composition" />
 
+        {/* LMMS workflow banner — push to branch, merge via PR */}
+        <div className="mb-6 rounded-xl bg-amber-500/10 border border-amber-500/30 px-6 py-4 flex items-start gap-4">
+          <svg className="w-6 h-6 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div>
+            <p className="font-semibold text-amber-200">Use branches & pull requests — don&apos;t push directly to main</p>
+            <p className="text-sm text-amber-200/80 mt-1">
+              In LMMS: <strong>select your branch</strong> (e.g. create &quot;b2&quot;, select it) <strong>before pushing</strong>. Pushes go to the selected branch.
+              To merge into main, create a <Link to={`/project/${projectId}/prs`} className="underline hover:text-amber-100">Pull Request</Link> here to review the diff first.
+            </p>
+          </div>
+        </div>
+
         {/* Header: cover + title + right side actions */}
         <div className="flex gap-10 mb-12 items-center justify-between">
           <div className="flex gap-10 items-center">
@@ -141,7 +155,7 @@ export default function Dashboard() {
                 <button
                   onClick={copyId}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#111] border border-white/10 hover:border-white/30 transition-all group shadow-sm mt-1"
-                  title="Copy Project ID for LMMS"
+                  title="Copy Project ID for LMMS. In LMMS: select your branch before pushing."
                 >
                   <span className="font-mono text-sm font-medium text-[#e0e0e0]/50 group-hover:text-white transition-colors">
                     {projectId}

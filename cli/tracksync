@@ -3,10 +3,12 @@
 TrackSync CLI — sync music projects between TrackSync server and your DAW.
 
 Usage:
-  tracksync clone <server_url> <project_id> [--dir <directory>]
-  tracksync push  [-m <message>] [--producer <name>]
-  tracksync pull  [--producer <name>]
+  tracksync clone <server_url> <project_id> [--dir <directory>] [-b <branch>]
+  tracksync push  [-m <message>] [-b <branch>] [--producer <name>]
+  tracksync pull  [-b <branch>] [--producer <name>]
   tracksync status
+
+  Branch: use -b/--branch or TRACKSYNC_BRANCH env. Pushes to main are blocked — use a feature branch, then create a PR.
 """
 
 import argparse
@@ -66,11 +68,12 @@ def api_url(config: dict, path: str) -> str:
 def cmd_clone(args):
     server = args.server_url.rstrip("/")
     project_id = args.project_id
+    branch = getattr(args, "branch", None) or "main"
     target_dir = Path(args.dir) if args.dir else Path.cwd() / project_id
 
-    print(f"Cloning project '{project_id}' from {server}...")
+    print(f"Cloning project '{project_id}' (branch: {branch}) from {server}...")
 
-    url = f"{server}/api/projects/{project_id}/clone"
+    url = f"{server}/api/projects/{project_id}/clone?branch={branch}"
     resp = requests.get(url)
     if resp.status_code != 200:
         print(f"Error: {resp.status_code} — {resp.text}")
@@ -121,6 +124,7 @@ def cmd_clone(args):
         "server_url": server,
         "project_id": project_id,
         "project_name": project["name"],
+        "branch": branch,
         "latest_commit": manifest.get("latest_commit"),
         "checksums": checksums,
         "stems_dir": "stems",
@@ -129,10 +133,11 @@ def cmd_clone(args):
 
     print()
     print(f"Done! Project cloned to: {target_dir}")
+    print(f"  Branch: {branch}")
     print(f"  Stems are in: {stems_dir}")
     print()
     print("Open the stems in LMMS, then use:")
-    print("  tracksync push -m 'your message'   — to push changes")
+    print("  tracksync push -m 'your message' -b <branch>  — push to a feature branch (not main)")
     print("  tracksync pull                      — to pull updates")
     print("  tracksync status                    — to check sync status")
 
@@ -166,7 +171,18 @@ def cmd_push(args):
         print("Nothing to push — all stems are up to date.")
         return
 
-    print(f"Pushing {len(changed)} changed file(s) to '{config['project_name']}'...")
+    branch = (
+        (args.branch if hasattr(args, "branch") and args.branch)
+        or os.environ.get("TRACKSYNC_BRANCH")
+        or config.get("branch", "main")
+    )
+    if branch == "main":
+        print("Error: Direct pushes to main are not allowed.")
+        print("  Push to a feature branch: tracksync push -b <branch> -m 'message'")
+        print("  Or set TRACKSYNC_BRANCH=b1 before pushing.")
+        sys.exit(1)
+
+    print(f"Pushing {len(changed)} changed file(s) to '{config['project_name']}' (branch: {branch})...")
     for f in changed:
         status = "new" if f.name not in old_checksums else "modified"
         print(f"  {'+'if status == 'new' else '~'} {f.name} ({status})")
@@ -176,7 +192,7 @@ def cmd_push(args):
 
     resp = requests.post(url, data={
         "commit_message": message,
-        "branch": "main",
+        "branch": branch,
         "producer_id": producer,
     }, files=files)
 
@@ -186,6 +202,7 @@ def cmd_push(args):
     if resp.status_code == 200:
         result = resp.json()
         config["checksums"] = new_checksums
+        config["branch"] = branch
         commit_hash = result.get("commit_hash", "")
         if commit_hash:
             config["latest_commit"] = commit_hash
@@ -201,7 +218,9 @@ def cmd_push(args):
         print(f"Pushed! '{message}'")
         print(f"  Tracks updated: {', '.join(result.get('tracks_added', []))}")
     else:
-        print(f"Error: {resp.status_code} — {resp.text}")
+        err = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
+        msg = err.get("error") or err.get("detail") or resp.text
+        print(f"Error: {resp.status_code} — {msg}")
         sys.exit(1)
 
 
@@ -295,6 +314,7 @@ def cmd_status(args):
     old_checksums = config.get("checksums", {})
 
     print(f"Project: {config['project_name']} ({project_id})")
+    print(f"Branch:  {config.get('branch', 'main')}")
     print(f"Server:  {config['server_url']}")
     print(f"Commit:  {config.get('latest_commit', 'unknown')}")
     print()
@@ -366,14 +386,17 @@ def main():
     clone_p.add_argument("server_url", help="TrackSync server URL (e.g. http://localhost:3000)")
     clone_p.add_argument("project_id", help="Project ID to clone")
     clone_p.add_argument("--dir", help="Target directory (defaults to ./<project_id>)")
+    clone_p.add_argument("-b", "--branch", default="main", help="Branch to clone (default: main)")
     clone_p.set_defaults(func=cmd_clone)
 
-    push_p = sub.add_parser("push", help="Push local changes to TrackSync")
+    push_p = sub.add_parser("push", help="Push local changes to TrackSync (use -b for feature branch)")
     push_p.add_argument("-m", "--message", help="Commit message (default: 'Update from LMMS')")
+    push_p.add_argument("-b", "--branch", help="Branch to push to (required; main is blocked)")
     push_p.add_argument("--producer", help="Producer name (default: 'lmms-user')")
     push_p.set_defaults(func=cmd_push)
 
     pull_p = sub.add_parser("pull", help="Pull latest changes from TrackSync")
+    pull_p.add_argument("-b", "--branch", help="Branch to pull (default: from config or main)")
     pull_p.add_argument("--producer", help="Producer name (default: 'lmms-user')")
     pull_p.set_defaults(func=cmd_pull)
 

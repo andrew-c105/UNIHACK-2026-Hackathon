@@ -35,7 +35,7 @@ class GitService:
         proj_path.mkdir(parents=True, exist_ok=True)
         (proj_path / "tracks").mkdir(exist_ok=True)
         if not (proj_path / ".git").exists():
-            repo = Repo.init(proj_path, initial_branch="master")
+            repo = Repo.init(proj_path, initial_branch="main")
             self._ensure_no_gpg_sign(repo)
             (proj_path / "tracks" / ".gitkeep").touch()
             repo.index.add(["tracks/.gitkeep"])
@@ -48,7 +48,7 @@ class GitService:
         repo = Repo(proj_path)
         return [b.name for b in repo.branches]
 
-    def create_branch(self, project_id: str, branch_name: str, base_branch: str = "master") -> dict:
+    def create_branch(self, project_id: str, branch_name: str, base_branch: str = "main") -> dict:
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
             return {"error": "Project not found"}
@@ -62,7 +62,7 @@ class GitService:
     def get_current_branch(self, project_id: str) -> str:
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
-            return "master"
+            return "main"
         repo = Repo(proj_path)
         return repo.active_branch.name
 
@@ -74,6 +74,12 @@ class GitService:
         commit_message: str,
         files: list,
     ) -> dict:
+        # Block direct pushes to main — changes must go through a Pull Request
+        if branch == "main":
+            return {
+                "error": "Direct pushes to main are not allowed. Push to a feature branch (e.g. b1), then create a Pull Request in TrackSync to merge into main.",
+            }
+
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
             return {"error": "Project not found"}
@@ -160,7 +166,7 @@ class GitService:
             "branch": branch,
         }
 
-    def get_session(self, project_id: str, producer_id: str, branch: str = "master") -> Optional[dict]:
+    def get_session(self, project_id: str, producer_id: str, branch: str = "main") -> Optional[dict]:
         """Get session view scoped to a specific branch."""
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
@@ -260,7 +266,7 @@ class GitService:
                 repo.heads[original].checkout(force=True)
         return f"/audio/{project_id}/_mix_cache/{cache_file.name}" if cache_file.exists() else None
 
-    def get_clone_manifest(self, project_id: str, branch: str = "master") -> dict:
+    def get_clone_manifest(self, project_id: str, branch: str = "main") -> dict:
         """Return tracks from a branch with download URLs for pull/clone."""
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
@@ -303,7 +309,7 @@ class GitService:
 
     def create_pull_request(
         self, project_id: str, source_branch: str,
-        target_branch: str = "master", author: str = "producer-1",
+        target_branch: str = "main", author: str = "producer-1",
     ) -> dict:
         proj_path = self._project_path(project_id)
         if not proj_path.exists():
@@ -383,7 +389,7 @@ class GitService:
 
         proj_path = self._project_path(project_id)
         source_branch = "feature"
-        target_branch = "master"
+        target_branch = "main"
         author = ""
         has_conflicts = False
         status = "open"
@@ -394,7 +400,7 @@ class GitService:
             db_pr = self.storage.get_pr(pr_id)
             if db_pr:
                 source_branch = db_pr.get("branch", "feature")
-                target_branch = db_pr.get("target_branch", "master")
+                target_branch = db_pr.get("target_branch", "main")
                 author = db_pr.get("author", "")
                 has_conflicts = db_pr.get("has_conflicts", False)
                 status = db_pr.get("status", "open")
@@ -510,7 +516,7 @@ class GitService:
         if not db_pr:
             return {"error": "PR not found"}
         source_branch = db_pr.get("branch", "feature")
-        target_branch = db_pr.get("target_branch", "master")
+        target_branch = db_pr.get("target_branch", "main")
 
         repo = Repo(proj_path)
         self._ensure_no_gpg_sign(repo)

@@ -67,7 +67,7 @@ export default function PullRequests() {
   const [loading, setLoading] = useState(true);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [baseBranch, setBaseBranch] = useState('master');
+  const [baseBranch, setBaseBranch] = useState('main');
   const [compareBranch, setCompareBranch] = useState('');
   const [creating, setCreating] = useState(false);
 
@@ -81,7 +81,7 @@ export default function PullRequests() {
         setPrs(pull_requests || []);
         setProject(proj?.project || null);
         setBranches(b || []);
-        const nonMain = (b || []).filter((br) => br !== 'master');
+        const nonMain = (b || []).filter((br) => br !== 'main');
         if (nonMain.length > 0) setCompareBranch(nonMain[0]);
       })
       .catch(() => {

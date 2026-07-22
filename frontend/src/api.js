@@ -1,15 +1,28 @@
-const API_BASE = 'http://127.0.0.1:8000';
+// In dev, call backend directly to avoid proxy issues (e.g. DELETE 405)
+const API_BASE = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+  : '/api';
 
 async function fetchApi(path, options = {}) {
+  const hasBody = options.body !== undefined && options.body !== null;
+  const headers = { ...options.headers };
+  if (hasBody) headers['Content-Type'] = 'application/json';
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || res.statusText || 'API error');
+    const msg = err.detail || (typeof err === 'string' ? err : null) || res.statusText || 'API error';
+    throw new Error(msg);
   }
-  return res.json();
+  const text = await res.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {};
+  }
 }
 
 export const api = {
@@ -36,9 +49,9 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
-  getSession: (projectId, producerId, branch = 'master') =>
+  getSession: (projectId, producerId, branch = 'main') =>
     fetchApi(`/projects/${projectId}/session?producer_id=${producerId || 'producer-1'}&branch=${branch}`),
-  pushFiles: async (projectId, files, commitMessage, branch = 'master', producerId = 'producer-1') => {
+  pushFiles: async (projectId, files, commitMessage, branch = 'main', producerId = 'producer-1') => {
     const form = new FormData();
     form.append('commit_message', commitMessage);
     form.append('branch', branch);
@@ -51,16 +64,16 @@ export const api = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
-  pull: (projectId, branch = 'master', producerId = 'producer-1') =>
+  pull: (projectId, branch = 'main', producerId = 'producer-1') =>
     fetchApi(`/projects/${projectId}/pull?branch=${branch}&producer_id=${producerId}`, {
       method: 'POST',
     }),
-  getHistory: (projectId, branch = 'master') =>
+  getHistory: (projectId, branch = 'main') =>
     fetchApi(`/projects/${projectId}/history?branch=${branch}`),
 
   // Branches
   listBranches: (projectId) => fetchApi(`/projects/${projectId}/branches`),
-  createBranch: (projectId, name, base = 'master') =>
+  createBranch: (projectId, name, base = 'main') =>
     fetchApi(`/projects/${projectId}/branches`, {
       method: 'POST',
       body: JSON.stringify({ name, base }),
@@ -68,7 +81,7 @@ export const api = {
 
   // Pull Requests
   listPrs: (projectId) => fetchApi(`/projects/${projectId}/prs`),
-  createPr: (projectId, sourceBranch, targetBranch = 'master', author = 'producer-1') =>
+  createPr: (projectId, sourceBranch, targetBranch = 'main', author = 'producer-1') =>
     fetchApi(`/projects/${projectId}/prs`, {
       method: 'POST',
       body: JSON.stringify({ source_branch: sourceBranch, target_branch: targetBranch, author }),
@@ -88,11 +101,11 @@ export const api = {
     }),
 
   getConflict: (projectId, trackId) => fetchApi(`/projects/${projectId}/conflict?track=${trackId}`),
-  getMainAudio: (projectId, branch = 'master') =>
+  getMainAudio: (projectId, branch = 'main') =>
     fetchApi(`/projects/${projectId}/main-audio?branch=${branch}`),
 
   /** Batch: project + session + history + main_audio in one call. Use for Dashboard. */
-  getDashboard: (projectId, producerId = 'producer-1', branch = 'master') =>
+  getDashboard: (projectId, producerId = 'producer-1', branch = 'main') =>
     fetchApi(`/projects/${projectId}/dashboard?producer_id=${producerId}&branch=${branch}`),
   getWaveform: (projectId, filename, numPeaks = 200) =>
     fetchApi(`/projects/${projectId}/waveform/${filename}?num_peaks=${numPeaks}`),
