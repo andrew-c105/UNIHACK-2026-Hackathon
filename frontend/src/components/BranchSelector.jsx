@@ -5,17 +5,24 @@ export default function BranchSelector({ projectId, value, onChange }) {
   const [branches, setBranches] = useState([]);
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [newName, setNewName] = useState('');
   const ref = useRef(null);
 
-  useEffect(() => {
+  const fetchBranches = () => {
     if (!projectId) return;
+    setRefreshing(true);
     api.listBranches(projectId)
       .then(({ branches: b, current }) => {
         setBranches(b || []);
         if (!value && current) onChange?.(current);
       })
-      .catch(() => setBranches(['master']));
+      .catch(() => setBranches(['main']))
+      .finally(() => setRefreshing(false));
+  };
+
+  useEffect(() => {
+    fetchBranches();
   }, [projectId]);
 
   useEffect(() => {
@@ -81,7 +88,18 @@ export default function BranchSelector({ projectId, value, onChange }) {
             )}
           </div>
           <div className="border-t border-white/10 p-2">
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 items-center">
+              <button
+                onClick={(e) => { e.stopPropagation(); fetchBranches(); }}
+                disabled={refreshing}
+                title="Refresh branches (e.g. after creating in LMMS)"
+                className="p-1.5 rounded-md bg-white/5 hover:bg-white/10 text-[#e0e0e0]/60 hover:text-white transition-colors disabled:opacity-50 shrink-0"
+              >
+                <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <div className="flex gap-1.5 flex-1 min-w-0">
               <input
                 type="text"
                 value={newName}
@@ -97,6 +115,7 @@ export default function BranchSelector({ projectId, value, onChange }) {
               >
                 {creating ? '...' : '+'}
               </button>
+              </div>
             </div>
           </div>
         </div>

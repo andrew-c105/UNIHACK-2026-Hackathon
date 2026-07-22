@@ -47,6 +47,7 @@ export default function Projects() {
       setProjects((prev) => prev.filter((p) => p.id !== id));
     } catch (err) {
       alert(err.message || 'Failed to delete project');
+      loadProjects(); // Refresh list in case of stale state
     }
   };
 

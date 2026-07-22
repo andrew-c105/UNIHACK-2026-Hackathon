@@ -178,7 +178,7 @@ async def upload_cover(project_id: str, file: UploadFile = File(...)):
 
 
 @app.get("/projects/{project_id}/dashboard")
-def get_dashboard(project_id: str, producer_id: Optional[str] = None, branch: str = "master"):
+def get_dashboard(project_id: str, producer_id: Optional[str] = None, branch: str = "main"):
     """Batch endpoint: project + session + history + main_audio in one response. Much faster than 4 separate calls."""
     producer_id = producer_id or "producer-1"
     project = storage_service.get_project(project_id)
@@ -215,7 +215,7 @@ def get_dashboard(project_id: str, producer_id: Optional[str] = None, branch: st
 
 
 @app.get("/projects/{project_id}/clone")
-def clone_project(project_id: str, branch: str = "master"):
+def clone_project(project_id: str, branch: str = "main"):
     """Return project manifest with tracks from the specified branch for pull/clone."""
     project = storage_service.get_project(project_id)
     if not project:
@@ -230,7 +230,7 @@ def clone_project(project_id: str, branch: str = "master"):
 
 
 @app.get("/projects/{project_id}/session")
-def get_session(project_id: str, producer_id: Optional[str] = None, branch: str = "master"):
+def get_session(project_id: str, producer_id: Optional[str] = None, branch: str = "main"):
     producer_id = producer_id or "producer-1"
     session = git_service.get_session(project_id, producer_id, branch)
     if not session:
@@ -250,7 +250,7 @@ def list_branches(project_id: str):
 
 class BranchCreate(BaseModel):
     name: str
-    base: Optional[str] = "master"
+    base: Optional[str] = "main"
 
 
 @app.post("/projects/{project_id}/branches")
@@ -258,7 +258,7 @@ def create_branch(project_id: str, body: BranchCreate):
     project = storage_service.get_project(project_id)
     if not project:
         raise HTTPException(404, "Project not found")
-    result = git_service.create_branch(project_id, body.name, body.base or "master")
+    result = git_service.create_branch(project_id, body.name, body.base or "main")
     if result.get("error"):
         raise HTTPException(400, result["error"])
     return result
@@ -268,7 +268,7 @@ def create_branch(project_id: str, body: BranchCreate):
 async def push_files(
     project_id: str,
     commit_message: str = Form(...),
-    branch: str = Form("master"),
+    branch: str = Form("main"),
     producer_id: str = Form("producer-1"),
     files: list[UploadFile] = File(...),
 ):
@@ -279,20 +279,20 @@ async def push_files(
 
 
 @app.post("/projects/{project_id}/pull")
-def pull_latest(project_id: str, branch: str = "master", producer_id: str = "producer-1"):
+def pull_latest(project_id: str, branch: str = "main", producer_id: str = "producer-1"):
     result = git_service.pull(project_id, producer_id, branch)
     return result
 
 
 @app.get("/projects/{project_id}/history")
-def get_history(project_id: str, branch: str = "master"):
+def get_history(project_id: str, branch: str = "main"):
     history = git_service.get_history(project_id, branch)
     return {"history": history}
 
 
 class PullRequestCreate(BaseModel):
     source_branch: str
-    target_branch: Optional[str] = "master"
+    target_branch: Optional[str] = "main"
     author: Optional[str] = "producer-1"
 
 
@@ -311,7 +311,7 @@ def create_pr(project_id: str, body: PullRequestCreate):
     if not project:
         raise HTTPException(404, "Project not found")
     result = git_service.create_pull_request(
-        project_id, body.source_branch, body.target_branch or "master", body.author or "producer-1"
+        project_id, body.source_branch, body.target_branch or "main", body.author or "producer-1"
     )
     if result.get("error"):
         raise HTTPException(400, result["error"])
@@ -367,7 +367,7 @@ def get_conflict(project_id: str, track: str = Query("Bass_Synth")):
 
 
 @app.get("/projects/{project_id}/main-audio")
-def get_main_audio(project_id: str, branch: str = "master"):
+def get_main_audio(project_id: str, branch: str = "main"):
     """Return URL for main mix for the given branch. Never falls back to workspace storage."""
     try:
         url = git_service.get_main_mix_url_for_branch(project_id, branch)
