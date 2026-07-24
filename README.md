@@ -66,20 +66,6 @@ Copy `.env.example` to `.env` and fill in values if using Supabase locally:
 cp .env.example .env
 ```
 
-## Environment Variables
-
-Secrets stay out of git — set these in Railway / Vercel dashboards (or a local `.env` file).
-
-| Variable | Where | Description |
-|----------|-------|-------------|
-| `SUPABASE_URL` | Backend | Supabase project URL (optional) |
-| `SUPABASE_KEY` | Backend | Supabase anon/service key (optional) |
-| `TRACKSYNC_DATA_DIR` | Backend | Data directory (default `./data`, Railway uses `/app/data`) |
-| `CORS_ORIGINS` | Backend | Comma-separated allowed origins (include your Vercel URL in prod) |
-| `VITE_API_URL` | Frontend | Backend URL for production builds (local dev defaults to `http://localhost:8000`) |
-
-See `.env.example` for a template. Never commit `.env` files.
-
 ## Deployment
 
 **Backend (Railway):**
@@ -97,16 +83,6 @@ See `.env.example` for a template. Never commit `.env` files.
 npm run deploy:frontend        # production
 npm run deploy:frontend:preview  # preview
 ```
-
-## Demo Flow (Two Laptops)
-
-1. Laptop A: create a project on the web app → copy Project ID
-2. Both laptops: open LMMS → TrackSync sidebar → connect with the same Project ID
-3. Each laptop: create a branch (`b1`, `b2`) and push different sample tracks
-4. Web: create a PR (`b1 → main`), listen to diffs, resolve conflicts if needed, merge
-5. Other laptop: pull `main` in LMMS to get the merged result
-
-**Tip:** give each LMMS sample track a unique name — duplicate names overwrite each other on push.
 
 ## API Endpoints
 
