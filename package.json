@@ -2,7 +2,7 @@
   "name": "tracksync",
   "private": true,
   "scripts": {
-    "dev": "npm run kill-ports 2>/dev/null; run-p dev:backend dev:frontend",
+    "dev": "npm run kill-ports 2>/dev/null; concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && ./venv/bin/uvicorn main:app --reload --port 8000",
     "kill-ports": "lsof -ti :8000 | xargs kill -9 2>/dev/null; lsof -ti :3000 | xargs kill -9 2>/dev/null; true",

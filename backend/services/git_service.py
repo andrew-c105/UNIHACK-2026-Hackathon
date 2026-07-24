@@ -136,16 +136,12 @@ class GitService:
             return {"error": "No files saved"}
 
         # Regenerate main mix before committing so it's included in the same commit
-        wav_files = [f for f in tracks_dir.iterdir()
-                     if f.suffix.lower() == ".wav" and not f.name.startswith(".")]
-        if wav_files:
-            mixed = self.ffmpeg.mix_to_mp3(proj_path, sorted(wav_files))
-            if mixed and self.storage:
-                self.storage.upload_main_mix(project_id, proj_path / "main.mp3")
-            if mixed:
-                main_mp3 = proj_path / "main.mp3"
-                if main_mp3.exists():
-                    repo.index.add([str(main_mp3.relative_to(proj_path))])
+        wav_files = self._list_stem_wavs(tracks_dir)
+        mix_path = self.ffmpeg.mix_stems(proj_path, wav_files) if wav_files else None
+        if mix_path:
+            repo.index.add([str(mix_path.relative_to(proj_path))])
+            if self.storage:
+                self.storage.upload_main_mix(project_id, mix_path)
 
         commit = repo.index.commit(f"{commit_message} (by {producer_id})")
 
@@ -243,28 +239,35 @@ class GitService:
         if branch not in branch_names:
             return None
         tree = repo.commit(branch).tree
-        if "main.mp3" in tree:
-            return f"/audio/{project_id}/branch/{branch}/main.mp3"
+        for mix_name in ("main.mp3", "main.wav"):
+            if mix_name in tree:
+                return f"/audio/{project_id}/branch/{branch}/{mix_name}"
+
         cache_dir = proj_path / "_mix_cache"
         cache_dir.mkdir(exist_ok=True)
-        cache_file = cache_dir / f"{branch.replace('/', '_')}.mp3"
-        if cache_file.exists():
-            return f"/audio/{project_id}/_mix_cache/{cache_file.name}"
+        cache_key = branch.replace("/", "_")
+        cache_mp3 = cache_dir / f"{cache_key}.mp3"
+        cache_wav = cache_dir / f"{cache_key}.wav"
+        if cache_mp3.exists():
+            return f"/audio/{project_id}/_mix_cache/{cache_mp3.name}"
+        if cache_wav.exists():
+            return f"/audio/{project_id}/_mix_cache/{cache_wav.name}"
+
         original = repo.active_branch.name
         try:
             repo.heads[branch].checkout(force=True)
             tracks_dir = proj_path / "tracks"
-            wav_files = [f for f in sorted(tracks_dir.iterdir())
-                         if f.suffix.lower() == ".wav" and not f.name.startswith(".")]
-            if wav_files:
-                mixed = self.ffmpeg.mix_to_mp3(proj_path, wav_files)
-                if mixed and (proj_path / "main.mp3").exists():
-                    import shutil
-                    shutil.copy(proj_path / "main.mp3", cache_file)
+            wav_files = self._list_stem_wavs(tracks_dir)
+            mix_path = self.ffmpeg.mix_stems(proj_path, wav_files) if wav_files else None
+            if mix_path:
+                import shutil
+                cache_file = cache_mp3 if mix_path.suffix == ".mp3" else cache_wav
+                shutil.copy(mix_path, cache_file)
+                return f"/audio/{project_id}/_mix_cache/{cache_file.name}"
         finally:
             if original in branch_names:
                 repo.heads[original].checkout(force=True)
-        return f"/audio/{project_id}/_mix_cache/{cache_file.name}" if cache_file.exists() else None
+        return None
 
     def get_clone_manifest(self, project_id: str, branch: str = "main") -> dict:
         """Return tracks from a branch with download URLs for pull/clone."""
@@ -290,6 +293,16 @@ class GitService:
                 "download_url": download_url,
             })
         return {"tracks": tracks}
+
+    def _list_stem_wavs(self, tracks_dir: Path) -> list:
+        """Return sorted stem WAV paths, excluding conflict artifacts."""
+        return sorted(
+            f for f in tracks_dir.iterdir()
+            if f.suffix.lower() == ".wav"
+            and not f.name.startswith(".")
+            and not f.stem.endswith("_mine")
+            and not f.stem.endswith("_theirs")
+        )
 
     def _list_branch_wavs(self, repo, branch_name: str) -> dict:
         """List WAV files on a branch by reading the git tree (no checkout).
@@ -536,24 +549,19 @@ class GitService:
             return {"error": f"Merge failed: {e.stderr or str(e)}"}
 
         tracks_dir = proj_path / "tracks"
-        wav_files = [f for f in sorted(tracks_dir.iterdir())
-                     if f.suffix.lower() == ".wav"
-                     and not f.stem.endswith("_mine")
-                     and not f.stem.endswith("_theirs")]
-        if wav_files:
-            mixed = self.ffmpeg.mix_to_mp3(proj_path, wav_files)
-            if mixed:
-                main_mp3 = proj_path / "main.mp3"
-                if main_mp3.exists():
-                    repo.index.add([str(main_mp3.relative_to(proj_path))])
-                    repo.index.commit("Update main mix after merge")
-                if self.storage:
-                    self.storage.upload_main_mix(project_id, proj_path / "main.mp3")
+        wav_files = self._list_stem_wavs(tracks_dir)
+        mix_path = self.ffmpeg.mix_stems(proj_path, wav_files) if wav_files else None
+        if mix_path:
+            repo.index.add([str(mix_path.relative_to(proj_path))])
+            repo.index.commit("Update main mix after merge")
+            if self.storage:
+                self.storage.upload_main_mix(project_id, mix_path)
 
         cache_dir = proj_path / "_mix_cache"
-        cache_file = cache_dir / f"{target_branch.replace('/', '_')}.mp3"
-        if cache_file.exists():
-            cache_file.unlink(missing_ok=True)
+        cache_key = target_branch.replace("/", "_")
+        for cache_file in (cache_dir / f"{cache_key}.mp3", cache_dir / f"{cache_key}.wav"):
+            if cache_file.exists():
+                cache_file.unlink(missing_ok=True)
 
         self.storage.merge_pr(pr_id)
 
