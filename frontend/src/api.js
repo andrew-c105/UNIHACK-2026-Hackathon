@@ -1,7 +1,7 @@
 // In dev, call backend directly to avoid proxy issues (e.g. DELETE 405)
-const API_BASE = import.meta.env.DEV
-  ? (import.meta.env.VITE_API_URL || 'http://localhost:8000')
-  : '/api';
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.DEV ? 'http://localhost:8000' : '/api');
 
 async function fetchApi(path, options = {}) {
   const hasBody = options.body !== undefined && options.body !== null;
@@ -100,7 +100,8 @@ export const api = {
       body: JSON.stringify({ project_id: projectId, pr_id: prId, conflict_resolutions: conflictResolutions }),
     }),
 
-  getConflict: (projectId, trackId) => fetchApi(`/projects/${projectId}/conflict?track=${trackId}`),
+  getConflict: (projectId, trackId, prId) =>
+    fetchApi(`/projects/${projectId}/conflict?track=${encodeURIComponent(trackId)}${prId ? `&pr=${encodeURIComponent(prId)}` : ''}`),
   getMainAudio: (projectId, branch = 'main') =>
     fetchApi(`/projects/${projectId}/main-audio?branch=${branch}`),
 

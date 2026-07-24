@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: tracksync-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: TRACKSYNC_DATA_DIR
+        value: /var/data
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+    disk:
+      name: tracksync-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -11,6 +11,7 @@ const SILENCE_URL = '/audio/silence.wav';
 const CHANGE_STYLES = {
   added: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', badge: 'bg-emerald-500/20 text-emerald-400', label: 'Added' },
   modified: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', badge: 'bg-amber-500/20 text-amber-400', label: 'Modified' },
+  conflict: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', badge: 'bg-amber-500/20 text-amber-400', label: 'Conflict' },
   removed: { bg: 'bg-red-500/10', border: 'border-red-500/30', badge: 'bg-red-500/20 text-red-400', label: 'Removed' },
 };
 
@@ -65,7 +66,9 @@ export default function PullRequest() {
     try {
       const resolutions = {};
       pr?.tracks?.forEach((t) => {
-        if (t.change_type === 'conflict') resolutions[t.id] = 'mine';
+        if (t.change_type === 'conflict' || t.change_type === 'modified') {
+          resolutions[t.id] = 'theirs';
+        }
       });
       await api.mergePr(projectId, prId, resolutions);
       setPr((prev) => (prev ? { ...prev, merged: true, status: 'merged' } : null));
@@ -100,9 +103,12 @@ export default function PullRequest() {
 
   const tracks = pr.tracks || [];
   const added = tracks.filter((t) => t.change_type === 'added');
+  const conflicts = tracks.filter((t) => t.change_type === 'conflict' || t.change_type === 'modified');
   const modified = tracks.filter((t) => t.change_type === 'modified');
   const removed = tracks.filter((t) => t.change_type === 'removed');
-  const changedCount = added.length + modified.length + removed.length;
+  const changedCount = added.length + conflicts.length + removed.length;
+  const hasConflicts = pr.has_conflicts || conflicts.length > 0;
+  const firstConflict = conflicts[0];
 
   return (
     <div className="min-h-screen pb-24 bg-[#0a0a0a]">
@@ -166,8 +172,8 @@ export default function PullRequest() {
                 {added.length > 0 && (
                   <span className="text-emerald-400">+{added.length} added</span>
                 )}
-                {modified.length > 0 && (
-                  <span className="text-amber-400">~{modified.length} modified</span>
+                {conflicts.length > 0 && (
+                  <span className="text-amber-400">~{conflicts.length} conflict{conflicts.length !== 1 ? 's' : ''}</span>
                 )}
                 {removed.length > 0 && (
                   <span className="text-red-400">-{removed.length} removed</span>
@@ -176,9 +182,9 @@ export default function PullRequest() {
             </div>
 
             <div className="flex gap-2 shrink-0">
-              {pr.has_conflicts && (
+              {hasConflicts && firstConflict && (
                 <Link
-                  to={`/project/${projectId}/conflict?track=${tracks.find((t) => t.change_type === 'conflict')?.id || ''}`}
+                  to={`/project/${projectId}/conflict?pr=${prId}&track=${encodeURIComponent(firstConflict.id)}`}
                   className="rounded-lg border border-amber-500/50 px-4 py-2 text-sm text-amber-400 hover:bg-amber-500/10 transition-colors"
                 >
                   Resolve Conflicts
@@ -187,7 +193,7 @@ export default function PullRequest() {
               {!pr.merged && (
                 <button
                   onClick={handleMerge}
-                  disabled={merging || pr.has_conflicts}
+                  disabled={merging || hasConflicts}
                   className="rounded-lg px-5 py-2.5 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors"
                 >
                   {merging ? 'Merging…' : 'Merge Pull Request'}
@@ -283,8 +289,49 @@ export default function PullRequest() {
           </section>
         )}
 
-        {/* ===== MODIFIED TRACKS ===== */}
-        {modified.length > 0 && (
+        {/* ===== CONFLICT / MODIFIED TRACKS ===== */}
+        {conflicts.length > 0 && (
+          <section className="mb-8">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-amber-400 uppercase tracking-wider mb-4">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              Conflicts ({conflicts.length})
+            </h2>
+            <div className="space-y-6">
+              {conflicts.map((t) => (
+                <div key={t.id} className={`rounded-xl border ${CHANGE_STYLES.conflict.border} ${CHANGE_STYLES.conflict.bg} overflow-hidden`}>
+                  <div className="px-6 py-3 border-b border-amber-500/20 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`rounded px-2 py-0.5 text-xs font-medium ${CHANGE_STYLES.conflict.badge}`}>
+                        Conflict
+                      </span>
+                      <h3 className="text-white font-medium">{t.name}</h3>
+                    </div>
+                    <Link
+                      to={`/project/${projectId}/conflict?pr=${prId}&track=${encodeURIComponent(t.id)}`}
+                      className="text-amber-400 text-xs hover:underline"
+                    >
+                      Resolve →
+                    </Link>
+                  </div>
+                  <div className="p-6">
+                    <DiffWaveform
+                      urlA={audioUrl(t.base_url)}
+                      urlB={audioUrl(t.compare_url)}
+                      labelA={`${pr.target_branch} (base)`}
+                      labelB={`${pr.source_branch} (compare)`}
+                      height={80}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ===== MODIFIED TRACKS (legacy) ===== */}
+        {modified.length > 0 && conflicts.length === 0 && (
           <section className="mb-8">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-amber-400 uppercase tracking-wider mb-4">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

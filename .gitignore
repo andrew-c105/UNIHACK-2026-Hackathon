@@ -6,4 +6,9 @@ backend/**/__pycache__/
 data/
 *.pyc
 .env
+.env.local
+.env.*.local
+!.env.example
 .DS_Store
+.vercel/
+.railway/

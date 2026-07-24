@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/projects",
+      "destination": "https://backend-production-8b2a.up.railway.app/projects"
+    },
+    {
+      "source": "/projects/:path*",
+      "destination": "https://backend-production-8b2a.up.railway.app/projects/:path*"
+    },
+    {
+      "source": "/audio/:path*",
+      "destination": "https://backend-production-8b2a.up.railway.app/audio/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

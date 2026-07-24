@@ -30,13 +30,26 @@ class GitService:
         except Exception:
             pass
 
+    def _ensure_git_identity(self, repo: Repo) -> None:
+        """Set local committer identity — required on servers without global git config."""
+        try:
+            with repo.config_writer() as cw:
+                cw.set_value("user", "email", "tracksync@noreply.local")
+                cw.set_value("user", "name", "TrackSync")
+        except Exception:
+            pass
+
+    def _prepare_repo(self, repo: Repo) -> None:
+        self._ensure_no_gpg_sign(repo)
+        self._ensure_git_identity(repo)
+
     def init_project(self, project_id: str):
         proj_path = self._project_path(project_id)
         proj_path.mkdir(parents=True, exist_ok=True)
         (proj_path / "tracks").mkdir(exist_ok=True)
         if not (proj_path / ".git").exists():
             repo = Repo.init(proj_path, initial_branch="main")
-            self._ensure_no_gpg_sign(repo)
+            self._prepare_repo(repo)
             (proj_path / "tracks" / ".gitkeep").touch()
             repo.index.add(["tracks/.gitkeep"])
             repo.index.commit("Initial commit")
@@ -85,7 +98,7 @@ class GitService:
             return {"error": "Project not found"}
 
         repo = Repo(proj_path)
-        self._ensure_no_gpg_sign(repo)
+        self._prepare_repo(repo)
 
         # Checkout or create the target branch
         if branch not in [b.name for b in repo.branches]:
@@ -320,6 +333,93 @@ class GitService:
                 result[key] = (blob.name, blob.size)
         return result
 
+    def _read_blob_from_branch(self, repo: Repo, branch: str, path: str) -> bytes:
+        tree = repo.commit(branch).tree
+        for part in path.split("/"):
+            tree = tree[part]
+        stream = tree.data_stream
+        chunks = []
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    def _write_blob_to_file(self, repo: Repo, branch: str, path: str, out_path: Path) -> None:
+        tree = repo.commit(branch).tree
+        for part in path.split("/"):
+            tree = tree[part]
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(out_path, "wb") as fp:
+            stream = tree.data_stream
+            while True:
+                chunk = stream.read(65536)
+                if not chunk:
+                    break
+                fp.write(chunk)
+
+    def _abort_merge_if_pending(self, repo: Repo) -> None:
+        try:
+            repo.git.merge("--abort")
+        except GitCommandError:
+            pass
+
+    def _merge_branches(
+        self,
+        repo: Repo,
+        proj_path: Path,
+        source_branch: str,
+        target_branch: str,
+        conflict_resolutions: dict,
+    ) -> None:
+        """Merge source into target without git merge — binary WAVs always conflict in git."""
+        target_tracks = self._list_branch_wavs(repo, target_branch)
+        source_tracks = self._list_branch_wavs(repo, source_branch)
+        all_keys = set(target_tracks.keys()) | set(source_tracks.keys())
+
+        merged: dict[str, tuple[str, str, str]] = {}  # key -> (filename, branch, path)
+        for key in all_keys:
+            in_target = key in target_tracks
+            in_source = key in source_tracks
+
+            if in_source and not in_target:
+                fname = source_tracks[key][0]
+                merged[key] = (fname, source_branch, f"tracks/{fname}")
+            elif in_target and not in_source:
+                fname = target_tracks[key][0]
+                merged[key] = (fname, target_branch, f"tracks/{fname}")
+            else:
+                target_fname, target_size = target_tracks[key]
+                source_fname, source_size = source_tracks[key]
+                track_id = Path(source_fname).stem
+                if target_size == source_size:
+                    merged[key] = (target_fname, target_branch, f"tracks/{target_fname}")
+                else:
+                    choice = conflict_resolutions.get(track_id) or conflict_resolutions.get(key) or "theirs"
+                    if choice == "mine":
+                        merged[key] = (target_fname, target_branch, f"tracks/{target_fname}")
+                    else:
+                        merged[key] = (source_fname, source_branch, f"tracks/{source_fname}")
+
+        repo.heads[target_branch].checkout(force=True)
+        tracks_dir = proj_path / "tracks"
+        tracks_dir.mkdir(exist_ok=True)
+
+        merged_keys = set(merged.keys())
+        for f in tracks_dir.iterdir():
+            if f.suffix.lower() == ".wav" and not f.name.startswith("."):
+                if f.name.lower() not in merged_keys:
+                    f.unlink()
+
+        for key, (fname, branch, blob_path) in merged.items():
+            out_path = tracks_dir / fname
+            self._write_blob_to_file(repo, branch, blob_path, out_path)
+
+        for stale in (proj_path / "main.mp3", proj_path / "main.wav"):
+            if stale.exists():
+                stale.unlink()
+
     def create_pull_request(
         self, project_id: str, source_branch: str,
         target_branch: str = "main", author: str = "producer-1",
@@ -364,24 +464,27 @@ class GitService:
         if not changed_tracks:
             return {"error": "No differences between branches"}
 
+        has_conflicts = any(ct == "modified" for _, ct in changed_tracks)
+
         pr_row = self.storage.create_pr(
             project_id=project_id,
             branch=source_branch,
             author=author,
-            has_conflicts=False,
+            has_conflicts=has_conflicts,
             target_branch=target_branch,
         )
         pr_id = pr_row["id"]
 
         for fname, change_type in changed_tracks:
             track_name = Path(fname).stem
+            is_conflict = change_type == "modified"
             self.storage.add_pr_track(
                 pr_id=pr_id,
                 track_name=track_name,
-                change_type=change_type,
+                change_type="conflict" if is_conflict else change_type,
                 main_path=fname,
                 branch_path=fname,
-                status=change_type,
+                status="conflict" if is_conflict else change_type,
             )
 
         return {
@@ -459,7 +562,7 @@ class GitService:
             elif in_target and not in_source:
                 change_type = "removed"
             elif in_source and in_target and source_files[key][1] != target_files[key][1]:
-                change_type = "modified"
+                change_type = "conflict"
             else:
                 change_type = "unchanged"
 
@@ -492,7 +595,50 @@ class GitService:
             "created_at": created_at,
         }
 
-    def get_conflict_urls(self, project_id: str, track_id: str) -> Optional[dict]:
+    def get_conflict_urls(
+        self, project_id: str, track_id: str, pr_id: Optional[str] = None
+    ) -> Optional[dict]:
+        from urllib.parse import quote
+
+        if pr_id and self.storage:
+            db_pr = self.storage.get_pr(pr_id)
+            if db_pr:
+                proj_path = self._project_path(project_id)
+                if not proj_path.exists():
+                    return None
+                repo = Repo(proj_path)
+                source_branch = db_pr.get("branch", "feature")
+                target_branch = db_pr.get("target_branch", "main")
+                target_files = self._list_branch_wavs(repo, target_branch)
+                source_files = self._list_branch_wavs(repo, source_branch)
+
+                def _find_fname(files_dict: dict, tid: str) -> Optional[str]:
+                    tid_norm = tid.lower().replace("_", " ")
+                    for key, (fname, _) in files_dict.items():
+                        stem = Path(fname).stem
+                        if stem.lower() == tid.lower() or key == tid.lower():
+                            return fname
+                        if stem.lower().replace("_", " ") == tid_norm:
+                            return fname
+                    return None
+
+                def _audio_url(branch: str, fname: str) -> str:
+                    encoded = quote(fname, safe="")
+                    return f"/audio/{project_id}/branch/{branch}/tracks/{encoded}"
+
+                target_fname = _find_fname(target_files, track_id)
+                source_fname = _find_fname(source_files, track_id)
+                if target_fname or source_fname:
+                    stem = Path((source_fname or target_fname)).stem
+                    return {
+                        "mine_url": _audio_url(target_branch, target_fname) if target_fname else None,
+                        "theirs_url": _audio_url(source_branch, source_fname) if source_fname else None,
+                        "track_id": stem,
+                        "pr_id": pr_id,
+                        "source_branch": source_branch,
+                        "target_branch": target_branch,
+                    }
+
         proj_path = self._project_path(project_id)
         tracks_dir = proj_path / "tracks"
         mine = tracks_dir / f"{track_id}_mine.wav"
@@ -512,11 +658,7 @@ class GitService:
                 "theirs_url": f"{base_url}/{base.name}",
                 "track_id": track_id,
             }
-        return {
-            "mine_url": f"{base_url}/{track_id}.wav",
-            "theirs_url": f"{base_url}/{track_id}.wav",
-            "track_id": track_id,
-        }
+        return None
 
     def merge_pr(self, project_id: str, pr_id: str, conflict_resolutions: dict) -> dict:
         proj_path = self._project_path(project_id)
@@ -532,7 +674,7 @@ class GitService:
         target_branch = db_pr.get("target_branch", "main")
 
         repo = Repo(proj_path)
-        self._ensure_no_gpg_sign(repo)
+        self._prepare_repo(repo)
         branch_names = [b.name for b in repo.branches]
         if source_branch not in branch_names:
             return {"error": f"Source branch '{source_branch}' not found"}
@@ -540,22 +682,28 @@ class GitService:
             return {"error": f"Target branch '{target_branch}' not found"}
 
         original_branch = repo.active_branch.name
+        self._abort_merge_if_pending(repo)
         try:
-            repo.heads[target_branch].checkout(force=True)
-            repo.git.merge(source_branch, "--no-edit")
-        except GitCommandError as e:
+            self._merge_branches(
+                repo, proj_path, source_branch, target_branch, conflict_resolutions or {}
+            )
+        except Exception as e:
+            self._abort_merge_if_pending(repo)
             if original_branch in branch_names:
                 repo.heads[original_branch].checkout(force=True)
-            return {"error": f"Merge failed: {e.stderr or str(e)}"}
+            return {"error": f"Merge failed: {e}"}
 
         tracks_dir = proj_path / "tracks"
         wav_files = self._list_stem_wavs(tracks_dir)
         mix_path = self.ffmpeg.mix_stems(proj_path, wav_files) if wav_files else None
-        if mix_path:
-            repo.index.add([str(mix_path.relative_to(proj_path))])
-            repo.index.commit("Update main mix after merge")
-            if self.storage:
-                self.storage.upload_main_mix(project_id, mix_path)
+
+        repo.git.add("-A", "tracks/")
+        if mix_path and mix_path.exists():
+            repo.git.add(str(mix_path.relative_to(proj_path)))
+        repo.git.commit("-m", f"Merge branch '{source_branch}' into {target_branch}")
+
+        if mix_path and self.storage:
+            self.storage.upload_main_mix(project_id, mix_path)
 
         cache_dir = proj_path / "_mix_cache"
         cache_key = target_branch.replace("/", "_")

@@ -24,9 +24,15 @@ load_dotenv()
 
 app = FastAPI(title="TrackSync API", version="1.0.0")
 
+_default_cors = "http://localhost:3000,http://127.0.0.1:3000"
+_cors_origins = [
+    o.strip()
+    for o in os.getenv("CORS_ORIGINS", _default_cors).split(",")
+    if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -359,8 +365,8 @@ def merge_pr(project_id: str, pr_id: str, body: MergeRequest):
 
 
 @app.get("/projects/{project_id}/conflict")
-def get_conflict(project_id: str, track: str = Query("Bass_Synth")):
-    conflict = git_service.get_conflict_urls(project_id, track)
+def get_conflict(project_id: str, track: str = Query("Bass_Synth"), pr: Optional[str] = Query(None)):
+    conflict = git_service.get_conflict_urls(project_id, track, pr_id=pr)
     if not conflict:
         raise HTTPException(404, "No conflict for this track")
     return {"conflict": conflict}

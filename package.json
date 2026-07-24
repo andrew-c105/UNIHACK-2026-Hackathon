@@ -7,7 +7,9 @@
     "dev:backend": "cd backend && ./venv/bin/uvicorn main:app --reload --port 8000",
     "kill-ports": "lsof -ti :8000 | xargs kill -9 2>/dev/null; lsof -ti :3000 | xargs kill -9 2>/dev/null; true",
     "build": "cd frontend && npm run build",
-    "start:backend": "cd backend && ./venv/bin/uvicorn main:app --port 8000"
+    "start:backend": "cd backend && ./venv/bin/uvicorn main:app --port 8000",
+    "deploy:frontend": "cd frontend && npx vercel --prod",
+    "deploy:frontend:preview": "cd frontend && npx vercel"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"
